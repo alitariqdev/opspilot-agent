@@ -1,0 +1,35 @@
+2024-03-15T14:15:03Z INFO [reporting-worker] Starting scheduled revenue report generation
+2024-03-15T14:15:05Z INFO [reporting-worker] Executing query: SELECT orders.id, orders.total, customers.name FROM orders JOIN customers ON orders.customer_id = customers.id WHERE orders.created_at >= '2024-01-01'
+2024-03-15T14:15:06Z DEBUG [postgres] Connection pool: 18/20 connections active
+2024-03-15T14:18:42Z DEBUG [postgres] Connection pool: 19/20 connections active
+2024-03-15T14:20:15Z INFO [order-service] Received POST request to /api/orders/create from 203.0.113.42
+2024-03-15T14:20:16Z DEBUG [order-service] Attempting to acquire database connection
+2024-03-15T14:20:16Z WARN [order-service] Database connection acquisition timeout after 1000ms
+2024-03-15T14:20:16Z ERROR [order-service] Failed to create order: database connection pool exhausted
+2024-03-15T14:20:16Z INFO [api-gateway] Upstream service order-service returned 503 for POST /api/orders/create
+2024-03-15T14:21:33Z INFO [order-service] Received POST request to /api/orders/create from 203.0.113.58
+2024-03-15T14:21:34Z WARN [order-service] Database connection acquisition timeout after 1000ms
+2024-03-15T14:21:34Z ERROR [order-service] Failed to create order: database connection pool exhausted
+2024-03-15T14:21:34Z INFO [api-gateway] Upstream service order-service returned 503 for POST /api/orders/create
+2024-03-15T14:22:01Z DEBUG [postgres] Connection pool: 20/20 connections active - pool exhausted
+2024-03-15T14:22:15Z WARN [api-gateway] High latency detected: order-service avg response time 3421ms (threshold: 500ms)
+2024-03-15T14:22:18Z INFO [order-service] Received GET request to /api/orders/status from 203.0.113.91
+2024-03-15T14:22:19Z WARN [order-service] Database connection acquisition timeout after 1000ms
+2024-03-15T14:22:19Z ERROR [order-service] Failed to query order status: database connection pool exhausted
+2024-03-15T14:22:19Z INFO [api-gateway] Upstream service order-service returned 503 for GET /api/orders/status
+2024-03-15T14:23:47Z ERROR [order-service] Health check failed: cannot connect to database
+2024-03-15T14:23:50Z WARN [api-gateway] order-service health check failed - marking instance unhealthy
+2024-03-15T14:24:11Z INFO [order-service] Received POST request to /api/orders/create from 203.0.113.102
+2024-03-15T14:24:12Z WARN [order-service] Database connection acquisition timeout after 1000ms
+2024-03-15T14:24:12Z ERROR [order-service] Failed to create order: database connection pool exhausted
+2024-03-15T14:25:33Z DEBUG [postgres] Long-running query detected: query_id=9847 duration=622s source=reporting-worker
+2024-03-15T14:26:05Z INFO [reporting-worker] Query execution completed successfully - retrieved 284932 rows
+2024-03-15T14:26:06Z DEBUG [postgres] Connection pool: 2/20 connections active
+2024-03-15T14:26:08Z INFO [order-service] Received POST request to /api/orders/create from 203.0.113.77
+2024-03-15T14:26:09Z INFO [order-service] Order created successfully: order_id=ORD-998877
+2024-03-15T14:26:09Z INFO [api-gateway] Upstream service order-service returned 201 for POST /api/orders/create
+2024-03-15T14:26:22Z INFO [api-gateway] order-service health check passed - instance healthy
+2024-03-15T14:26:45Z INFO [order-service] Received POST request to /api/orders/create from 203.0.113.64
+2024-03-15T14:26:46Z INFO [order-service] Order created successfully: order_id=ORD-998878
+2024-03-15T14:27:01Z DEBUG [postgres] Connection pool: 4/20 connections active
+

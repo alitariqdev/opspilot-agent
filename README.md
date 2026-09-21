@@ -18,16 +18,47 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 
 ## Development Status
 
-**Current Phase**: Initial Project Setup ✅
+**Current Phase**: Evidence Retrieval MVP ✅
 
 - [x] Project structure and configuration
 - [x] Core configuration management with Pydantic
 - [x] Basic Streamlit UI foundation
-- [ ] Evidence retrieval system (BM25-based)
+- [x] Evidence retrieval system (BM25-based)
+- [x] Log parsing capabilities
+- [x] Runbook indexing
 - [ ] Multi-agent diagnosis pipeline (LangGraph)
-- [ ] Log analysis capabilities
-- [ ] Runbook parser and matcher
+- [ ] Interactive diagnosis interface
 - [ ] Remediation recommendation engine
+
+## Current MVP Progress
+
+### Local Evidence Retrieval (Completed)
+
+OpsPilot now includes a functional local evidence retrieval system that operates without external API calls:
+
+**Log Parsing** ([src/opspilot/tools/log_parser.py](src/opspilot/tools/log_parser.py))
+- Parses structured log files with timestamp, level, service, and message
+- Preserves original line numbers for accurate source citations
+- Handles malformed and blank lines gracefully
+- Supports batch processing of multiple log files
+
+**BM25 Evidence Retrieval** ([src/opspilot/tools/evidence_retriever.py](src/opspilot/tools/evidence_retriever.py))
+- Indexes log entries and runbook content for fast local search
+- Uses BM25Okapi algorithm for relevance-ranked retrieval
+- Returns evidence with stable IDs, source file, line number, and score
+- Supports querying across both logs and operational runbooks
+- No network requests or external dependencies required
+
+**Synthetic Incident Data** ([data/incidents/](data/incidents/))
+- Realistic microservice incident scenario (database connection pool exhaustion)
+- Complete causal timeline from reporting worker query → pool exhaustion → API failures
+- Synthetic logs with no real credentials or PII
+- Corresponding operational runbook with diagnostic guidance
+
+**Data Models** ([src/opspilot/models.py](src/opspilot/models.py))
+- Type-safe Pydantic models for Incident, LogEntry, and EvidenceChunk
+- Validated structure for evidence citations and metadata
+- Ready for integration with diagnosis agents
 
 ## Architecture
 

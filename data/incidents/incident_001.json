@@ -1,0 +1,19 @@
+{
+  "incident_id": "INC-2024-001",
+  "title": "Order Service API Unavailable - High Latency and 503 Errors",
+  "description": "Users are reporting inability to place orders through the web application. The order submission page times out or returns error messages. Customer support has received multiple complaints about checkout failures.",
+  "symptoms": [
+    "Order API returning HTTP 503 Service Unavailable",
+    "Increased response times on /api/orders endpoints",
+    "Timeout errors in web application frontend",
+    "Database connection warnings in monitoring dashboard"
+  ],
+  "start_time": "2024-03-15T14:22:00Z",
+  "affected_services": [
+    "order-service",
+    "api-gateway",
+    "postgres-primary"
+  ],
+  "severity": "high",
+  "status": "investigating"
+}
