@@ -1,0 +1,8 @@
+streamlit
+langgraph
+openai
+pydantic
+pydantic-settings
+python-dotenv
+rank-bm25
+pytest
