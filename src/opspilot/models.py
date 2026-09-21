@@ -154,3 +154,108 @@ class TriageResult(BaseModel):
     requires_human_review: bool = Field(
         default=False, description="True if human review recommended"
     )
+
+
+class HypothesisStatus(str, Enum):
+    """Status of a root cause hypothesis after verification.
+
+    supported: Evidence strongly supports the hypothesis
+    partially_supported: Some supporting evidence, gaps remain
+    unsupported: Evidence does not support the hypothesis
+    """
+
+    SUPPORTED = "supported"
+    PARTIALLY_SUPPORTED = "partially_supported"
+    UNSUPPORTED = "unsupported"
+
+
+class RootCauseHypothesis(BaseModel):
+    """Represents a root cause hypothesis for an incident.
+
+    Attributes:
+        hypothesis_id: Unique identifier for this hypothesis
+        title: Brief title summarizing the hypothesis
+        description: Detailed description of the hypothesized root cause
+        rank: Ranking position (1 = most likely)
+        confidence: Confidence score between 0.0 and 1.0
+        evidence_ids: List of evidence IDs supporting this hypothesis
+        reasoning: Explanation of why this hypothesis is plausible
+        status: Verification status (after verification)
+        missing_evidence: Evidence gaps that would strengthen hypothesis
+        requires_human_review: True if human review is needed
+    """
+
+    hypothesis_id: str = Field(description="Unique hypothesis identifier")
+    title: str = Field(description="Brief hypothesis title")
+    description: str = Field(description="Detailed hypothesis description")
+    rank: int = Field(description="Ranking position", ge=1)
+    confidence: float = Field(
+        description="Confidence score (0.0 to 1.0)",
+        ge=0.0,
+        le=1.0,
+    )
+    evidence_ids: List[str] = Field(
+        default_factory=list, description="Supporting evidence IDs"
+    )
+    reasoning: str = Field(description="Reasoning for this hypothesis")
+    status: Optional[HypothesisStatus] = Field(
+        default=None, description="Verification status"
+    )
+    missing_evidence: List[str] = Field(
+        default_factory=list, description="Missing evidence descriptions"
+    )
+    requires_human_review: bool = Field(
+        default=True, description="Human review required"
+    )
+
+
+class DiagnosisResult(BaseModel):
+    """Result of incident diagnosis producing root cause hypotheses.
+
+    Attributes:
+        incident_id: ID of the incident being diagnosed
+        hypotheses: List of root cause hypotheses, ranked by confidence
+        summary: Summary of the diagnosis
+        limitations: Known limitations or gaps in the diagnosis
+        insufficient_evidence: True if evidence is insufficient for diagnosis
+        requires_human_review: True if human review is required
+    """
+
+    incident_id: str = Field(description="Incident identifier")
+    hypotheses: List[RootCauseHypothesis] = Field(
+        default_factory=list, description="Root cause hypotheses, ranked"
+    )
+    summary: str = Field(description="Diagnosis summary")
+    limitations: List[str] = Field(
+        default_factory=list, description="Known limitations"
+    )
+    insufficient_evidence: bool = Field(
+        default=False, description="True if evidence insufficient"
+    )
+    requires_human_review: bool = Field(
+        default=True, description="Human review required"
+    )
+
+
+class VerificationResult(BaseModel):
+    """Result of hypothesis verification against evidence.
+
+    Attributes:
+        incident_id: ID of the incident
+        verified_hypotheses: Hypotheses that passed verification
+        rejected_hypothesis_ids: IDs of hypotheses rejected during verification
+        verification_summary: Summary of verification findings
+        requires_human_review: True if human review required
+    """
+
+    incident_id: str = Field(description="Incident identifier")
+    verified_hypotheses: List[RootCauseHypothesis] = Field(
+        default_factory=list, description="Verified hypotheses"
+    )
+    rejected_hypothesis_ids: List[str] = Field(
+        default_factory=list, description="Rejected hypothesis IDs"
+    )
+    verification_summary: str = Field(description="Verification summary")
+    requires_human_review: bool = Field(
+        default=True, description="Human review required"
+    )

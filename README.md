@@ -18,7 +18,7 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 
 ## Development Status
 
-**Current Phase**: Offline Incident Triage ✅
+**Current Phase**: Root Cause Diagnosis & Verification ✅
 
 - [x] Project structure and configuration
 - [x] Core configuration management with Pydantic
@@ -27,6 +27,8 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 - [x] Log parsing capabilities
 - [x] Runbook indexing
 - [x] Evidence-grounded incident triage (offline demo mode)
+- [x] Root cause diagnosis with ranked hypotheses
+- [x] Independent evidence verification
 - [ ] Multi-agent diagnosis pipeline (LangGraph)
 - [ ] Interactive diagnosis interface
 - [ ] Remediation recommendation engine
@@ -89,6 +91,43 @@ OpsPilot now includes an evidence-grounded triage component that operates in off
 - No invented data - only extracts from provided evidence
 - Modular severity logic ready for LLM replacement
 - Type-safe structured outputs with Pydantic validation
+
+### Root Cause Diagnosis & Verification (Completed)
+
+OpsPilot now includes evidence-grounded diagnosis and independent verification components operating in offline demo mode:
+
+**Diagnosis Agent** ([src/opspilot/agents/diagnosis.py](src/opspilot/agents/diagnosis.py))
+- Generates multiple ranked root cause hypotheses from evidence patterns
+- Recognizes common patterns: pool exhaustion, long-running queries, timeouts, HTTP 5xx failures, resource saturation
+- Ranks hypotheses by confidence score (0.0-1.0)
+- Distinguishes correlation from causation in reasoning
+- Never recommends or executes remediation actions
+- Fully deterministic: identical input produces identical output
+
+**Verification Agent** ([src/opspilot/agents/verifier.py](src/opspilot/agents/verifier.py))
+- Independently verifies each hypothesis against cited evidence
+- Confirms all evidence IDs exist and are valid
+- Marks hypotheses as supported, partially supported, or unsupported
+- Rejects fabricated hypotheses (e.g., DNS, security breach, hardware failure) with no supporting evidence
+- Removes invalid evidence citations
+- Never increases confidence scores - only maintains or reduces
+- Identifies missing evidence needed for stronger conclusions
+
+**Hypothesis Features**
+- **Stable IDs**: Hash-based unique identifiers for each hypothesis
+- **Evidence Citations**: All claims linked to specific evidence chunks
+- **Confidence Scoring**: Based on evidence strength and pattern clarity
+- **Status Tracking**: Verification status (supported/partially_supported/unsupported)
+- **Missing Evidence**: Explicit gaps identified for investigation
+- **Human Review Required**: All hypotheses flagged for human validation
+
+**Key Safety Principles**
+- No invented evidence or fabricated scenarios
+- Correlation explicitly distinguished from causation
+- All confidence adjustments are reductions or neutral (never increases)
+- Fabricated hypotheses (DNS, security, hardware) rejected when unsupported
+- All conclusions require human review before action
+- No remediation recommendations provided
 
 ## Architecture
 
