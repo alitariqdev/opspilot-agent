@@ -259,3 +259,78 @@ class VerificationResult(BaseModel):
     requires_human_review: bool = Field(
         default=True, description="Human review required"
     )
+
+
+class RiskLevel(str, Enum):
+    """Risk level for remediation actions.
+
+    LOW: Minimal risk, reversible, read-only or monitoring actions
+    MEDIUM: Moderate risk, configuration changes, service restarts
+    HIGH: High risk, data changes, production database operations
+    CRITICAL: Critical risk, destructive operations, requires change control
+    """
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class RemediationAction(BaseModel):
+    """Represents a single remediation action recommendation.
+
+    Attributes:
+        action_id: Unique identifier for this action
+        title: Brief title for the action
+        description: Detailed description of the action
+        rationale: Why this action is recommended
+        priority: Priority rank (1 = highest priority)
+        risk_level: Risk level of this action
+        category: Action category (investigation, containment, recovery, prevention)
+        supporting_evidence_ids: Evidence supporting this recommendation
+        requires_human_approval: True if human approval required before execution
+        validation_step: How to validate the action was effective
+        rollback_consideration: How to rollback if action causes issues
+    """
+
+    action_id: str = Field(description="Unique action identifier")
+    title: str = Field(description="Action title")
+    description: str = Field(description="Detailed action description")
+    rationale: str = Field(description="Rationale for this action")
+    priority: int = Field(description="Priority rank (1 = highest)", ge=1)
+    risk_level: RiskLevel = Field(description="Risk level")
+    category: str = Field(description="Action category")
+    supporting_evidence_ids: List[str] = Field(
+        default_factory=list, description="Supporting evidence IDs"
+    )
+    requires_human_approval: bool = Field(
+        default=True, description="Human approval required"
+    )
+    validation_step: str = Field(description="How to validate effectiveness")
+    rollback_consideration: str = Field(
+        description="How to rollback if needed"
+    )
+
+
+class RemediationPlan(BaseModel):
+    """Complete remediation plan for an incident.
+
+    Attributes:
+        incident_id: ID of the incident
+        actions: List of recommended actions, ordered by priority
+        summary: Summary of the remediation plan
+        limitations: Known limitations or constraints
+        requires_human_approval: True if any action requires human approval
+    """
+
+    incident_id: str = Field(description="Incident identifier")
+    actions: List[RemediationAction] = Field(
+        default_factory=list, description="Recommended actions, ordered by priority"
+    )
+    summary: str = Field(description="Remediation plan summary")
+    limitations: List[str] = Field(
+        default_factory=list, description="Plan limitations"
+    )
+    requires_human_approval: bool = Field(
+        default=True, description="Human approval required"
+    )

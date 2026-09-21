@@ -18,7 +18,7 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 
 ## Development Status
 
-**Current Phase**: Root Cause Diagnosis & Verification ✅
+**Current Phase**: End-to-End Workflow & Reporting ✅
 
 - [x] Project structure and configuration
 - [x] Core configuration management with Pydantic
@@ -29,9 +29,11 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 - [x] Evidence-grounded incident triage (offline demo mode)
 - [x] Root cause diagnosis with ranked hypotheses
 - [x] Independent evidence verification
-- [ ] Multi-agent diagnosis pipeline (LangGraph)
-- [ ] Interactive diagnosis interface
-- [ ] Remediation recommendation engine
+- [x] Safe remediation recommendation engine
+- [x] Multi-agent workflow orchestration (LangGraph)
+- [x] Professional incident report generation (Markdown)
+- [ ] Interactive diagnosis interface (Streamlit)
+- [ ] LLM-powered agents (OpenAI integration)
 
 ## Current MVP Progress
 
@@ -127,22 +129,167 @@ OpsPilot now includes evidence-grounded diagnosis and independent verification c
 - All confidence adjustments are reductions or neutral (never increases)
 - Fabricated hypotheses (DNS, security, hardware) rejected when unsupported
 - All conclusions require human review before action
-- No remediation recommendations provided
+- Remediation recommendations provided but never executed automatically
+
+### Safe Remediation Planning (Completed)
+
+OpsPilot now includes a safe remediation planning component that generates recommendations based on verified hypotheses and runbook guidance:
+
+**Remediation Agent** ([src/opspilot/agents/remediation.py](src/opspilot/agents/remediation.py))
+- Generates recommendations only from verified hypotheses and runbook evidence
+- Categorizes actions: investigation, containment, recovery, prevention
+- Assigns risk levels (low, medium, high, critical) to each action
+- All state-changing actions require human approval
+- Never executes any actions automatically
+- Includes validation steps and rollback considerations
+- Cites supporting evidence for each recommendation
+
+**Remediation Features**
+- **Evidence-Based**: All recommendations grounded in verified hypotheses and runbooks
+- **Risk Assessment**: Each action labeled with appropriate risk level
+- **Human Approval Required**: All medium/high/critical risk actions flagged for approval
+- **Safety First**: Never recommends terminating queries without coordination
+- **Validation & Rollback**: Each action includes how to validate and rollback
+- **No Execution**: Generates recommendations only, never executes
+
+### LangGraph Workflow (Completed)
+
+OpsPilot now includes an end-to-end workflow orchestration system using LangGraph:
+
+**Workflow** ([src/opspilot/workflow.py](src/opspilot/workflow.py))
+
+The workflow connects all components in a deterministic pipeline:
+
+```
+START
+  ↓
+retrieve_evidence (BM25 retrieval from logs & runbooks)
+  ↓
+triage_incident (Severity classification & timeline)
+  ↓
+generate_hypotheses (Ranked root cause hypotheses)
+  ↓
+verify_hypotheses (Independent verification)
+  ↓
+propose_remediation (Safe action recommendations)
+  ↓
+generate_report (Professional Markdown report)
+  ↓
+END
+```
+
+**Workflow Features**
+- **Typed State**: TypedDict-based state management for type safety
+- **Error Handling**: Safe error capture without exposing stack traces
+- **Deterministic**: Identical inputs produce identical outputs
+- **No LLM Calls**: Operates entirely offline in demo mode
+- **Safe Failure**: Each node handles missing data gracefully
+- **Dependency Enforcement**: Each node validates required inputs
+
+**Workflow State**
+- `incident`: Incident metadata
+- `investigation_query`: Query for evidence retrieval
+- `evidence`: Retrieved evidence chunks
+- `triage_result`: Triage assessment
+- `diagnosis_result`: Root cause hypotheses
+- `verification_result`: Verification outcomes
+- `remediation_plan`: Safe recommendations
+- `incident_report`: Markdown report
+- `workflow_status`: Current workflow status
+- `errors`: Safe error messages
+
+### Professional Incident Reporting (Completed)
+
+OpsPilot generates comprehensive, human-readable incident reports in Markdown format:
+
+**Report Generator** ([src/opspilot/reporting.py](src/opspilot/reporting.py))
+- Generates professional Markdown reports suitable for documentation
+- Includes all analysis phases with evidence citations
+- Clearly identifies verified vs. rejected hypotheses
+- Lists categorized remediation recommendations
+- Provides evidence references with source file and line number
+- Includes prominent human review warnings
+- Escapes special characters for safe Markdown rendering
+- Deterministic output (no timestamps unless provided)
+
+**Report Sections**
+1. **Executive Summary**: Severity, affected services, symptoms
+2. **Evidence-Based Timeline**: Chronological events with citations
+3. **Root Cause Analysis**: Verified hypotheses and rejected ones
+4. **Recommended Actions**: Categorized by type and risk level
+5. **Analysis Limitations**: Known gaps and constraints
+6. **Evidence References**: Source files and line ranges
+7. **Human Review Required**: Prominent safety warnings
 
 ## Architecture
 
 ```
 opspilot-agent/
-├── src/opspilot/          # Core package
+├── src/opspilot/
 │   ├── agents/            # Agent implementations
+│   │   ├── triage.py      # Incident triage agent
+│   │   ├── diagnosis.py   # Root cause diagnosis agent
+│   │   ├── verifier.py    # Hypothesis verification agent
+│   │   └── remediation.py # Safe remediation planning agent
 │   ├── tools/             # Utilities and helper functions
-│   └── config.py          # Configuration management
+│   │   ├── log_parser.py       # Structured log parsing
+│   │   └── evidence_retriever.py # BM25-based retrieval
+│   ├── config.py          # Configuration management
+│   ├── models.py          # Pydantic data models
+│   ├── workflow.py        # LangGraph workflow orchestration
+│   └── reporting.py       # Markdown report generation
 ├── data/
 │   ├── incidents/         # Sample incident data
 │   └── runbooks/          # Operational runbooks
-├── tests/                 # Test suite
+├── tests/                 # Comprehensive test suite (107 tests)
 ├── app.py                 # Streamlit application
 └── requirements.txt       # Python dependencies
+```
+
+### Workflow Diagram
+
+```mermaid
+graph TD
+    A[START] --> B[retrieve_evidence]
+    B -->|Logs + Runbooks| C[triage_incident]
+    C -->|Severity + Timeline| D[generate_hypotheses]
+    D -->|Ranked Hypotheses| E[verify_hypotheses]
+    E -->|Verified Hypotheses| F[propose_remediation]
+    F -->|Safe Actions| G[generate_report]
+    G -->|Markdown Report| H[END]
+    
+    B -.->|Error| ERR[Safe Error State]
+    C -.->|Error| ERR
+    D -.->|Error| ERR
+    E -.->|Error| ERR
+    F -.->|Error| ERR
+    G -.->|Error| ERR
+```
+
+### Human Approval Boundary
+
+```
+┌─────────────────────────────────────────────────┐
+│  Automated Analysis (No Human Approval)         │
+│  ├── Evidence Retrieval (BM25)                  │
+│  ├── Incident Triage (Severity Classification)  │
+│  ├── Hypothesis Generation (Pattern Matching)   │
+│  ├── Hypothesis Verification (Evidence Check)   │
+│  └── Report Generation (Markdown Formatting)    │
+└─────────────────────────────────────────────────┘
+                       ↓
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃  ⚠️  HUMAN REVIEW REQUIRED                     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                       ↓
+┌─────────────────────────────────────────────────┐
+│  Actions Requiring Human Approval               │
+│  ├── Validate root cause hypotheses             │
+│  ├── Approve remediation actions                │
+│  ├── Execute configuration changes              │
+│  ├── Restart services                           │
+│  └── Modify production systems                  │
+└─────────────────────────────────────────────────┘
 ```
 
 ## Setup Instructions
