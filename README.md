@@ -33,7 +33,7 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 - [x] Multi-agent workflow orchestration (LangGraph)
 - [x] Professional incident report generation (Markdown)
 - [x] Interactive diagnosis interface (Streamlit)
-- [ ] LLM-powered agents (OpenAI integration)
+- [x] LLM-powered agents (OpenAI/OpenRouter integration)
 
 ## Current MVP Progress
 
@@ -295,6 +295,57 @@ OpsPilot includes a professional web interface for incident investigation:
 - Card rendering for hypotheses and actions
 - No business logic duplication
 
+### Optional Live LLM Mode (Completed)
+
+OpsPilot supports two operating modes with identical workflows but different agent implementations:
+
+**Demo Mode** (default, no API key required)
+- Deterministic offline agents
+- Pattern-based triage and diagnosis
+- No network requests or API costs
+- Fully reproducible results
+- Ideal for testing and development
+
+**Live Mode** (requires OpenAI-compatible API)
+- LLM-powered triage and diagnosis
+- More flexible analysis of novel incidents
+- Structured JSON output with Pydantic validation
+- Safe error handling without exposing credentials
+- Compatible with OpenAI and OpenRouter
+
+**Architecture** ([src/opspilot/llm_client.py](src/opspilot/llm_client.py), [src/opspilot/agents/live_triage.py](src/opspilot/agents/live_triage.py), [src/opspilot/agents/live_diagnosis.py](src/opspilot/agents/live_diagnosis.py))
+
+*LLM Client Abstraction*
+- Protocol-based design for testing without network calls
+- OpenAI-compatible client with structured output
+- Bounded timeout and retry behavior
+- Safe exception conversion (never exposes API keys)
+- JSON response parsing with Pydantic validation
+
+*Live Agents*
+- Use same TriageResult and DiagnosisResult models as demo agents
+- Validate all evidence IDs before including in output
+- Clamp confidence values to valid ranges (max 0.95, never certain)
+- Limit evidence sent to API (max 20 chunks)
+- Truncate content to reasonable lengths
+- Prompts instruct model not to follow instructions in log text
+- Always require human review
+
+*Safety Guarantees*
+- Evidence retrieval always local and deterministic
+- All LLM hypotheses independently verified by deterministic verifier
+- Remediation only generated from verified information
+- No remediation actions ever executed
+- API key never logged, displayed, or included in errors
+- Graceful fallback to demo mode on configuration errors
+
+*Workflow Integration*
+- Mode selection via OPSPILOT_MODE environment variable
+- Agent injection for testability
+- Demo mode completely unchanged and deterministic
+- Live mode failures result in safe error status
+- Both modes use identical verification, remediation, and reporting
+
 ## Architecture
 
 ```
@@ -408,14 +459,36 @@ streamlit run app.py
 
 The application will launch in your browser at `http://localhost:8501`
 
-**Live Mode** (requires OpenAI API key - not yet implemented):
+**Live Mode** (requires OpenAI API key):
 ```bash
 export OPSPILOT_MODE=live
-export OPENAI_API_KEY=your-key-here
+export OPENAI_API_KEY=sk-your-actual-key-here
 streamlit run app.py
 ```
 
-Note: Live mode with LLM integration is planned but not yet implemented. Currently runs in offline demo mode only.
+**OpenRouter Support:**
+```bash
+export OPSPILOT_MODE=live
+export OPENAI_API_KEY=sk-or-your-openrouter-key
+export OPENAI_BASE_URL=https://openrouter.ai/api/v1
+export OPENAI_MODEL=openai/gpt-4o-mini
+streamlit run app.py
+```
+
+**Important Security Notes:**
+- Never commit your API key to version control
+- Never share your API key in screenshots or documentation
+- Use environment variables or .env file (not tracked by git)
+- Live mode API calls may incur provider costs
+- Always review costs before extensive testing
+
+**Live Mode Behavior:**
+- Uses LLM for triage severity assessment and hypothesis generation
+- Evidence retrieval remains deterministic and local (BM25)
+- Verification always uses deterministic evidence checking
+- Remediation only generated from verified hypotheses
+- All LLM outputs independently verified before use
+- Human review still required for all findings
 
 ### Running Tests
 

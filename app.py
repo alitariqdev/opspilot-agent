@@ -63,7 +63,23 @@ def main():
         if mode == "DEMO":
             st.info("**Mode:** Offline Demo")
         else:
-            st.success("**Mode:** Live")
+            # Live mode
+            try:
+                config.validate_live_mode()
+                st.success("**Mode:** Live LLM")
+                st.caption(f"Model: {config.openai_model}")
+            except ValueError as e:
+                st.warning("**Mode:** Live (Incomplete)")
+                st.caption("⚠️ Configuration required")
+                with st.expander("Setup Instructions"):
+                    st.markdown("""
+                    Live mode requires:
+                    1. Set `OPENAI_API_KEY` in .env file
+                    2. Optionally set `OPENAI_MODEL`
+                    3. For OpenRouter, set `OPENAI_BASE_URL`
+
+                    See README.md for details.
+                    """)
 
         st.markdown("---")
         render_workflow_sidebar()

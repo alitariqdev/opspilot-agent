@@ -1,7 +1,7 @@
 """LangGraph workflow for end-to-end incident investigation."""
 
 from pathlib import Path
-from typing import List, Optional, TypedDict
+from typing import Any, List, Optional, Protocol, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -9,6 +9,7 @@ from src.opspilot.agents.diagnosis import DemoDiagnosisAgent
 from src.opspilot.agents.remediation import DemoRemediationAgent
 from src.opspilot.agents.triage import DemoTriageAgent
 from src.opspilot.agents.verifier import EvidenceVerifier
+from src.opspilot.config import OpsPilotConfig, get_config
 from src.opspilot.models import (
     DiagnosisResult,
     EvidenceChunk,
@@ -20,6 +21,29 @@ from src.opspilot.models import (
 from src.opspilot.reporting import generate_incident_report
 from src.opspilot.tools.evidence_retriever import create_evidence_retriever
 from src.opspilot.tools.log_parser import parse_log_file
+
+
+class TriageAgentProtocol(Protocol):
+    """Protocol for triage agents."""
+
+    def triage(
+        self, incident: Incident, evidence: List[EvidenceChunk]
+    ) -> TriageResult:
+        """Perform incident triage."""
+        ...
+
+
+class DiagnosisAgentProtocol(Protocol):
+    """Protocol for diagnosis agents."""
+
+    def diagnose(
+        self,
+        incident: Incident,
+        triage_result: TriageResult,
+        evidence: List[EvidenceChunk],
+    ) -> DiagnosisResult:
+        """Perform root cause diagnosis."""
+        ...
 
 
 class InvestigationState(TypedDict):
@@ -48,6 +72,8 @@ class InvestigationState(TypedDict):
     incident_report: Optional[str]
     workflow_status: str
     errors: List[str]
+    triage_agent: Optional[Any]
+    diagnosis_agent: Optional[Any]
 
 
 def retrieve_evidence_node(state: InvestigationState) -> InvestigationState:
@@ -165,7 +191,8 @@ def triage_incident_node(state: InvestigationState) -> InvestigationState:
                 + ["No evidence available for triage"],
             }
 
-        triage_agent = DemoTriageAgent()
+        # Use injected agent or default
+        triage_agent = state.get("triage_agent") or DemoTriageAgent()
         triage_result = triage_agent.triage(state["incident"], state["evidence"])
 
         return {
@@ -175,11 +202,14 @@ def triage_incident_node(state: InvestigationState) -> InvestigationState:
         }
 
     except Exception as e:
+        # Safe error message - never expose API keys or credentials
+        error_type = type(e).__name__
+        safe_message = f"Triage failed: {error_type}"
         return {
             **state,
             "triage_result": None,
             "workflow_status": "triage_failed",
-            "errors": state.get("errors", []) + [f"Triage error: {str(e)}"],
+            "errors": state.get("errors", []) + [safe_message],
         }
 
 
@@ -202,7 +232,8 @@ def generate_hypotheses_node(state: InvestigationState) -> InvestigationState:
                 + ["Missing incident or triage result for diagnosis"],
             }
 
-        diagnosis_agent = DemoDiagnosisAgent()
+        # Use injected agent or default
+        diagnosis_agent = state.get("diagnosis_agent") or DemoDiagnosisAgent()
         diagnosis_result = diagnosis_agent.diagnose(
             state["incident"], state["triage_result"], state["evidence"]
         )
@@ -214,11 +245,14 @@ def generate_hypotheses_node(state: InvestigationState) -> InvestigationState:
         }
 
     except Exception as e:
+        # Safe error message - never expose API keys or credentials
+        error_type = type(e).__name__
+        safe_message = f"Diagnosis failed: {error_type}"
         return {
             **state,
             "diagnosis_result": None,
             "workflow_status": "diagnosis_failed",
-            "errors": state.get("errors", []) + [f"Diagnosis error: {str(e)}"],
+            "errors": state.get("errors", []) + [safe_message],
         }
 
 
@@ -391,20 +425,63 @@ def build_investigation_graph() -> StateGraph:
 def run_investigation(
     incident: Incident,
     investigation_query: Optional[str] = None,
+    config: Optional[OpsPilotConfig] = None,
+    triage_agent: Optional[Any] = None,
+    diagnosis_agent: Optional[Any] = None,
 ) -> InvestigationState:
     """Run complete incident investigation workflow.
 
     Args:
         incident: Incident to investigate
         investigation_query: Optional custom query for evidence retrieval
+        config: Optional configuration (loads from environment if not provided)
+        triage_agent: Optional triage agent (uses mode-appropriate default if not provided)
+        diagnosis_agent: Optional diagnosis agent (uses mode-appropriate default if not provided)
 
     Returns:
         Final investigation state with all results
 
     Note:
         This is a convenience function for Streamlit integration.
-        All components run in offline demo mode with no LLM calls.
+        - Demo mode: Uses deterministic offline agents (no LLM calls)
+        - Live mode: Uses LLM-powered agents (requires API key)
+        - Verification, remediation, and reporting are always deterministic
     """
+    # Load configuration if not provided
+    if config is None:
+        config = get_config()
+
+    # Get agents based on mode and provided overrides
+    if triage_agent is None:
+        if config.opspilot_mode == "live":
+            try:
+                from src.opspilot.agents.live_triage import LiveTriageAgent
+                from src.opspilot.llm_client import create_llm_client
+
+                llm_client = create_llm_client(config)
+                triage_agent = LiveTriageAgent(llm_client)
+            except Exception as e:
+                # Fallback to demo mode on configuration error
+                triage_agent = DemoTriageAgent()
+                # Store error for reporting
+                config_error = f"Live mode configuration error: {str(e)}"
+        else:
+            triage_agent = DemoTriageAgent()
+
+    if diagnosis_agent is None:
+        if config.opspilot_mode == "live":
+            try:
+                from src.opspilot.agents.live_diagnosis import LiveDiagnosisAgent
+                from src.opspilot.llm_client import create_llm_client
+
+                llm_client = create_llm_client(config)
+                diagnosis_agent = LiveDiagnosisAgent(llm_client)
+            except Exception as e:
+                # Fallback to demo mode on configuration error
+                diagnosis_agent = DemoDiagnosisAgent()
+        else:
+            diagnosis_agent = DemoDiagnosisAgent()
+
     # Build and compile graph
     graph = build_investigation_graph()
 
@@ -420,6 +497,8 @@ def run_investigation(
         "incident_report": None,
         "workflow_status": "started",
         "errors": [],
+        "triage_agent": triage_agent,
+        "diagnosis_agent": diagnosis_agent,
     }
 
     # Run workflow
