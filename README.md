@@ -32,7 +32,7 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 - [x] Safe remediation recommendation engine
 - [x] Multi-agent workflow orchestration (LangGraph)
 - [x] Professional incident report generation (Markdown)
-- [ ] Interactive diagnosis interface (Streamlit)
+- [x] Interactive diagnosis interface (Streamlit)
 - [ ] LLM-powered agents (OpenAI integration)
 
 ## Current MVP Progress
@@ -221,6 +221,80 @@ OpsPilot generates comprehensive, human-readable incident reports in Markdown fo
 6. **Evidence References**: Source files and line ranges
 7. **Human Review Required**: Prominent safety warnings
 
+### Interactive Streamlit Interface (Completed)
+
+OpsPilot includes a professional web interface for incident investigation:
+
+**Application** ([app.py](app.py))
+- Clean, professional engineering tool design
+- Wide layout optimized for data-heavy views
+- Offline demo mode indicator
+- Human review safety warnings throughout
+- Session state management for persistent results
+
+**UI Features**
+
+*Incident Selection*
+- Displays incident metadata (ID, title, start time, status)
+- Shows affected services and reported symptoms
+- Lists available data files (logs, runbooks)
+
+*Investigation Controls*
+- Configurable investigation query with sensible defaults
+- Evidence limit control (5-30 chunks)
+- Run Investigation button to execute workflow
+- Reset button to clear results
+
+*Results Presentation* (5 tabs)
+
+1. **Overview Tab**
+   - Workflow status and key metrics
+   - Severity and confidence scores
+   - Affected services and symptoms
+   - Triage rationale
+   - Human review requirements
+
+2. **Timeline & Evidence Tab**
+   - Chronological timeline table with timestamps, services, descriptions
+   - Evidence table showing ID, source, type, line number, score, content
+   - Easy cross-referencing between timeline and evidence
+
+3. **Root Cause Hypotheses Tab**
+   - Hypotheses in ranked order
+   - Status badges (supported, partially supported, unsupported)
+   - Confidence scores and detailed reasoning
+   - Supporting evidence IDs with expandable details
+   - Missing evidence identification
+   - Rejected hypotheses listed separately
+   - Analysis limitations
+
+4. **Remediation Plan Tab**
+   - Actions grouped by category (investigation, containment, recovery, prevention)
+   - Priority ranking and risk levels (color-coded)
+   - Human approval requirements clearly marked
+   - Rationale, validation steps, and rollback considerations
+   - Supporting evidence IDs
+   - Plan limitations
+   - No execution buttons (recommendations only)
+
+5. **Incident Report Tab**
+   - Full Markdown report rendered
+   - Download button for report export
+   - Safe filename generation from incident ID
+
+*Sidebar*
+- Current mode indicator (Offline Demo / Live)
+- Workflow stages overview (6 steps)
+- Safety boundary explanation
+- Project version
+
+**UI Helpers** ([src/opspilot/ui.py](src/opspilot/ui.py))
+- Reusable presentation functions
+- Severity and status formatting
+- Table rendering for timeline and evidence
+- Card rendering for hypotheses and actions
+- No business logic duplication
+
 ## Architecture
 
 ```
@@ -332,18 +406,80 @@ graph TD
 streamlit run app.py
 ```
 
-**Live Mode** (requires OpenAI API key):
+The application will launch in your browser at `http://localhost:8501`
+
+**Live Mode** (requires OpenAI API key - not yet implemented):
 ```bash
 export OPSPILOT_MODE=live
 export OPENAI_API_KEY=your-key-here
 streamlit run app.py
 ```
 
+Note: Live mode with LLM integration is planned but not yet implemented. Currently runs in offline demo mode only.
+
 ### Running Tests
 
 ```bash
 pytest tests/
 ```
+
+All 136 tests should pass.
+
+## Using the Application
+
+### Quick Start
+
+1. Launch the Streamlit application:
+```bash
+streamlit run app.py
+```
+
+2. The application opens in your browser at `http://localhost:8501`
+
+3. Review the incident details displayed (sample incident loaded automatically)
+
+4. Click **"🔍 Run Investigation"** to execute the complete workflow
+
+5. View results across 5 tabs:
+   - **Overview**: Key metrics, severity, affected services
+   - **Timeline & Evidence**: Chronological events and evidence table
+   - **Root Cause Hypotheses**: Ranked hypotheses with verification status
+   - **Remediation Plan**: Safe action recommendations (categorized and risk-assessed)
+   - **Incident Report**: Full Markdown report with download button
+
+### What You'll See
+
+**After Running Investigation:**
+
+- **Severity Assessment**: SEV2 (High) classification
+- **Affected Services**: api-gateway, order-service, postgres
+- **Timeline**: 8 chronological events with evidence citations
+- **Evidence**: 15 chunks retrieved from logs and runbooks
+- **Hypotheses**: 2 generated hypotheses (both verified as supported)
+  - Database connection pool exhaustion (confidence: 0.95)
+  - Long-running query contribution (confidence: 0.45)
+- **Remediation**: 1 safe action recommendation (increase pool size - medium risk, approval required)
+- **Report**: 150-line professional Markdown report
+
+**Safety Features:**
+
+- All findings flagged for human review
+- No execution buttons for remediation actions
+- Clear risk levels and approval requirements
+- Multiple warnings throughout the interface
+- Download-only report (no automatic execution)
+
+### Customization
+
+**Investigation Query:**
+- Modify the query to focus on different aspects
+- Default: "database connection pool exhausted 503 errors"
+- Impacts which evidence chunks are retrieved
+
+**Evidence Limit:**
+- Adjust from 5-30 chunks
+- Default: 15 chunks
+- More evidence = more comprehensive but slower analysis
 
 ## Configuration
 
