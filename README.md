@@ -18,7 +18,7 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 
 ## Development Status
 
-**Current Phase**: Evidence Retrieval MVP ✅
+**Current Phase**: Offline Incident Triage ✅
 
 - [x] Project structure and configuration
 - [x] Core configuration management with Pydantic
@@ -26,6 +26,7 @@ OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams 
 - [x] Evidence retrieval system (BM25-based)
 - [x] Log parsing capabilities
 - [x] Runbook indexing
+- [x] Evidence-grounded incident triage (offline demo mode)
 - [ ] Multi-agent diagnosis pipeline (LangGraph)
 - [ ] Interactive diagnosis interface
 - [ ] Remediation recommendation engine
@@ -57,8 +58,37 @@ OpsPilot now includes a functional local evidence retrieval system that operates
 
 **Data Models** ([src/opspilot/models.py](src/opspilot/models.py))
 - Type-safe Pydantic models for Incident, LogEntry, and EvidenceChunk
+- Severity enum (SEV1-SEV4) with clear definitions
+- TimelineEvent and TriageResult models for structured assessments
 - Validated structure for evidence citations and metadata
-- Ready for integration with diagnosis agents
+
+### Offline Incident Triage (Completed)
+
+OpsPilot now includes an evidence-grounded triage component that operates in offline demo mode without LLM calls:
+
+**Demo Triage Agent** ([src/opspilot/agents/triage.py](src/opspilot/agents/triage.py))
+- Deterministic, rule-based triage assessment
+- Severity classification based on evidence patterns:
+  - SEV2 for repeated HTTP 5xx errors and connection pool exhaustion
+  - SEV3 for limited degradation
+  - SEV4 for insufficient evidence
+- Extracts affected services, symptoms, and timeline from evidence
+- Never claims root cause - explicitly marks as triage assessment only
+- Fully deterministic: identical input produces identical output
+
+**Triage Result Features**
+- **Evidence-Grounded**: All services, symptoms, and timeline events sourced from evidence
+- **Chronological Timeline**: Events sorted by timestamp with source citations
+- **Confidence Scoring**: 0.0-1.0 score based on evidence quantity and quality
+- **Human Review Flags**: SEV1/SEV2 incidents automatically flagged for review
+- **Stable Evidence IDs**: All timeline events reference valid evidence chunks
+- **Safe Failure Mode**: Empty evidence produces low-confidence SEV4 result
+
+**Key Design Principles**
+- No network requests or LLM calls (offline demo mode)
+- No invented data - only extracts from provided evidence
+- Modular severity logic ready for LLM replacement
+- Type-safe structured outputs with Pydantic validation
 
 ## Architecture
 

@@ -1,9 +1,10 @@
 """Data models for OpsPilot."""
 
 from datetime import datetime
+from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Incident(BaseModel):
@@ -73,4 +74,83 @@ class EvidenceChunk(BaseModel):
     score: float = Field(description="Retrieval relevance score")
     metadata: Optional[dict] = Field(
         default=None, description="Additional metadata"
+    )
+
+
+class Severity(str, Enum):
+    """Incident severity levels.
+
+    SEV1: Critical - widespread outage, data loss, severe security/safety impact
+    SEV2: High - substantial user-facing degradation, repeated 5xx errors
+    SEV3: Medium - limited degradation, intermittent errors
+    SEV4: Low - informational, negligible impact, insufficient evidence
+    """
+
+    SEV1 = "SEV1"
+    SEV2 = "SEV2"
+    SEV3 = "SEV3"
+    SEV4 = "SEV4"
+
+
+class TimelineEvent(BaseModel):
+    """Represents a single event in the incident timeline.
+
+    Attributes:
+        timestamp: Event timestamp (ISO 8601) if available from evidence
+        service: Service involved in this event if available from evidence
+        description: Concise event description
+        evidence_id: ID of the evidence supporting this event
+    """
+
+    timestamp: Optional[str] = Field(
+        default=None, description="Event timestamp (ISO 8601)"
+    )
+    service: Optional[str] = Field(
+        default=None, description="Service involved in event"
+    )
+    description: str = Field(description="Event description")
+    evidence_id: str = Field(description="Supporting evidence ID")
+
+
+class TriageResult(BaseModel):
+    """Result of incident triage assessment.
+
+    Attributes:
+        incident_id: ID of the incident being triaged
+        severity: Assessed severity level
+        affected_services: List of services affected (from evidence)
+        symptoms: List of observed symptoms (from evidence)
+        timeline: Chronological timeline of events with evidence
+        rationale: Explanation of the triage assessment
+        evidence_ids: List of all evidence IDs used in assessment
+        confidence: Confidence score between 0.0 and 1.0
+        insufficient_evidence: True if evidence is insufficient for assessment
+        requires_human_review: True if human review is recommended
+    """
+
+    incident_id: str = Field(description="Incident identifier")
+    severity: Severity = Field(description="Assessed severity")
+    affected_services: List[str] = Field(
+        default_factory=list, description="Affected services from evidence"
+    )
+    symptoms: List[str] = Field(
+        default_factory=list, description="Observed symptoms from evidence"
+    )
+    timeline: List[TimelineEvent] = Field(
+        default_factory=list, description="Chronological timeline with evidence"
+    )
+    rationale: str = Field(description="Triage rationale")
+    evidence_ids: List[str] = Field(
+        default_factory=list, description="All evidence IDs used"
+    )
+    confidence: float = Field(
+        description="Confidence score (0.0 to 1.0)",
+        ge=0.0,
+        le=1.0,
+    )
+    insufficient_evidence: bool = Field(
+        default=False, description="True if evidence is insufficient"
+    )
+    requires_human_review: bool = Field(
+        default=False, description="True if human review recommended"
     )
