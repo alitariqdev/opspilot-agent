@@ -1,472 +1,251 @@
 # OpsPilot Agent
 
-An evidence-grounded agent for diagnosing software incidents using incident descriptions, application logs, and operational runbooks.
+**Evidence-Grounded AI Agent for Software Incident Diagnosis**
 
-## Project Overview
+OpsPilot is an intelligent agent system that assists DevOps and SRE teams in diagnosing software incidents by analyzing application logs, operational runbooks, and incident descriptions to provide evidence-based root cause hypotheses and safe remediation recommendations.
 
-OpsPilot is an intelligent agent system designed to assist DevOps and SRE teams in diagnosing and resolving software incidents efficiently. By analyzing incident data, application logs, and organizational runbooks, OpsPilot provides evidence-based insights and remediation recommendations.
+---
 
-### Key Features (Planned)
+## The Problem
 
-- **Evidence-Grounded Analysis**: Grounds all diagnoses in concrete evidence from logs and runbooks
-- **Multi-Agent Architecture**: Specialized agents for different aspects of incident analysis
-- **Runbook Integration**: Leverages organizational knowledge and best practices
-- **Interactive Diagnosis**: Streamlit-based interface for real-time incident investigation
-- **Dual Mode Operation**: 
-  - **Demo Mode**: Simulated scenarios for testing and demonstration
-  - **Live Mode**: Integration with OpenAI API for production use
+When production incidents occur, Site Reliability Engineers and DevOps teams must:
+- Quickly assess incident severity
+- Sift through thousands of log entries to find relevant evidence
+- Correlate symptoms across multiple services
+- Identify plausible root causes
+- Determine safe remediation steps
 
-## Development Status
+This process is time-consuming, error-prone, and requires extensive domain knowledge. OpsPilot automates evidence collection and analysis while maintaining human oversight for all critical decisions.
 
-**Current Phase**: End-to-End Workflow & Reporting ✅
+---
 
-- [x] Project structure and configuration
-- [x] Core configuration management with Pydantic
-- [x] Basic Streamlit UI foundation
-- [x] Evidence retrieval system (BM25-based)
-- [x] Log parsing capabilities
-- [x] Runbook indexing
-- [x] Evidence-grounded incident triage (offline demo mode)
-- [x] Root cause diagnosis with ranked hypotheses
-- [x] Independent evidence verification
-- [x] Safe remediation recommendation engine
-- [x] Multi-agent workflow orchestration (LangGraph)
-- [x] Professional incident report generation (Markdown)
-- [x] Interactive diagnosis interface (Streamlit)
-- [x] LLM-powered agents (OpenAI/OpenRouter integration)
+## Key Features
 
-## Current MVP Progress
+### Core Functionality
 
-### Local Evidence Retrieval (Completed)
+**1. Log and Runbook Evidence Retrieval**
+- BM25-based local search (no external dependencies)
+- Parses structured log files preserving line numbers
+- Indexes operational runbooks for diagnostic guidance
+- Retrieves top-k most relevant evidence chunks
 
-OpsPilot now includes a functional local evidence retrieval system that operates without external API calls:
+**2. Incident Triage**
+- Automated severity classification (SEV1-SEV4)
+- Service and symptom extraction from evidence
+- Chronological timeline construction
+- Evidence-grounded assessment (no invented data)
 
-**Log Parsing** ([src/opspilot/tools/log_parser.py](src/opspilot/tools/log_parser.py))
-- Parses structured log files with timestamp, level, service, and message
-- Preserves original line numbers for accurate source citations
-- Handles malformed and blank lines gracefully
-- Supports batch processing of multiple log files
+**3. Ranked Root Cause Hypotheses**
+- Multiple plausible hypotheses generated
+- Confidence scoring (0.0-1.0 scale)
+- Supporting evidence citations
+- Explicit distinction between correlation and causation
 
-**BM25 Evidence Retrieval** ([src/opspilot/tools/evidence_retriever.py](src/opspilot/tools/evidence_retriever.py))
-- Indexes log entries and runbook content for fast local search
-- Uses BM25Okapi algorithm for relevance-ranked retrieval
-- Returns evidence with stable IDs, source file, line number, and score
-- Supports querying across both logs and operational runbooks
-- No network requests or external dependencies required
+**4. Independent Evidence Verification**
+- Deterministic verification of all hypotheses
+- Fabrication detection (rejects unsupported claims)
+- Evidence ID validation
+- Confidence adjustment (never increases)
 
-**Synthetic Incident Data** ([data/incidents/](data/incidents/))
-- Realistic microservice incident scenario (database connection pool exhaustion)
-- Complete causal timeline from reporting worker query → pool exhaustion → API failures
-- Synthetic logs with no real credentials or PII
-- Corresponding operational runbook with diagnostic guidance
+**5. Human-Reviewed Remediation Planning**
+- Safe action recommendations (investigation, containment, recovery, prevention)
+- Risk level assessment (low, medium, high, critical)
+- Validation steps and rollback considerations
+- **No automatic execution** - all actions require human approval
 
-**Data Models** ([src/opspilot/models.py](src/opspilot/models.py))
-- Type-safe Pydantic models for Incident, LogEntry, and EvidenceChunk
-- Severity enum (SEV1-SEV4) with clear definitions
-- TimelineEvent and TriageResult models for structured assessments
-- Validated structure for evidence citations and metadata
+**6. Downloadable Incident Report**
+- Professional Markdown format
+- Evidence references with file:line citations
+- Verified hypotheses and rejected claims
+- Complete analysis limitations
 
-### Offline Incident Triage (Completed)
+---
 
-OpsPilot now includes an evidence-grounded triage component that operates in offline demo mode without LLM calls:
+## Operating Modes
 
-**Demo Triage Agent** ([src/opspilot/agents/triage.py](src/opspilot/agents/triage.py))
-- Deterministic, rule-based triage assessment
-- Severity classification based on evidence patterns:
-  - SEV2 for repeated HTTP 5xx errors and connection pool exhaustion
-  - SEV3 for limited degradation
-  - SEV4 for insufficient evidence
-- Extracts affected services, symptoms, and timeline from evidence
-- Never claims root cause - explicitly marks as triage assessment only
-- Fully deterministic: identical input produces identical output
-
-**Triage Result Features**
-- **Evidence-Grounded**: All services, symptoms, and timeline events sourced from evidence
-- **Chronological Timeline**: Events sorted by timestamp with source citations
-- **Confidence Scoring**: 0.0-1.0 score based on evidence quantity and quality
-- **Human Review Flags**: SEV1/SEV2 incidents automatically flagged for review
-- **Stable Evidence IDs**: All timeline events reference valid evidence chunks
-- **Safe Failure Mode**: Empty evidence produces low-confidence SEV4 result
-
-**Key Design Principles**
-- No network requests or LLM calls (offline demo mode)
-- No invented data - only extracts from provided evidence
-- Modular severity logic ready for LLM replacement
-- Type-safe structured outputs with Pydantic validation
-
-### Root Cause Diagnosis & Verification (Completed)
-
-OpsPilot now includes evidence-grounded diagnosis and independent verification components operating in offline demo mode:
-
-**Diagnosis Agent** ([src/opspilot/agents/diagnosis.py](src/opspilot/agents/diagnosis.py))
-- Generates multiple ranked root cause hypotheses from evidence patterns
-- Recognizes common patterns: pool exhaustion, long-running queries, timeouts, HTTP 5xx failures, resource saturation
-- Ranks hypotheses by confidence score (0.0-1.0)
-- Distinguishes correlation from causation in reasoning
-- Never recommends or executes remediation actions
-- Fully deterministic: identical input produces identical output
-
-**Verification Agent** ([src/opspilot/agents/verifier.py](src/opspilot/agents/verifier.py))
-- Independently verifies each hypothesis against cited evidence
-- Confirms all evidence IDs exist and are valid
-- Marks hypotheses as supported, partially supported, or unsupported
-- Rejects fabricated hypotheses (e.g., DNS, security breach, hardware failure) with no supporting evidence
-- Removes invalid evidence citations
-- Never increases confidence scores - only maintains or reduces
-- Identifies missing evidence needed for stronger conclusions
-
-**Hypothesis Features**
-- **Stable IDs**: Hash-based unique identifiers for each hypothesis
-- **Evidence Citations**: All claims linked to specific evidence chunks
-- **Confidence Scoring**: Based on evidence strength and pattern clarity
-- **Status Tracking**: Verification status (supported/partially_supported/unsupported)
-- **Missing Evidence**: Explicit gaps identified for investigation
-- **Human Review Required**: All hypotheses flagged for human validation
-
-**Key Safety Principles**
-- No invented evidence or fabricated scenarios
-- Correlation explicitly distinguished from causation
-- All confidence adjustments are reductions or neutral (never increases)
-- Fabricated hypotheses (DNS, security, hardware) rejected when unsupported
-- All conclusions require human review before action
-- Remediation recommendations provided but never executed automatically
-
-### Safe Remediation Planning (Completed)
-
-OpsPilot now includes a safe remediation planning component that generates recommendations based on verified hypotheses and runbook guidance:
-
-**Remediation Agent** ([src/opspilot/agents/remediation.py](src/opspilot/agents/remediation.py))
-- Generates recommendations only from verified hypotheses and runbook evidence
-- Categorizes actions: investigation, containment, recovery, prevention
-- Assigns risk levels (low, medium, high, critical) to each action
-- All state-changing actions require human approval
-- Never executes any actions automatically
-- Includes validation steps and rollback considerations
-- Cites supporting evidence for each recommendation
-
-**Remediation Features**
-- **Evidence-Based**: All recommendations grounded in verified hypotheses and runbooks
-- **Risk Assessment**: Each action labeled with appropriate risk level
-- **Human Approval Required**: All medium/high/critical risk actions flagged for approval
-- **Safety First**: Never recommends terminating queries without coordination
-- **Validation & Rollback**: Each action includes how to validate and rollback
-- **No Execution**: Generates recommendations only, never executes
-
-### LangGraph Workflow (Completed)
-
-OpsPilot now includes an end-to-end workflow orchestration system using LangGraph:
-
-**Workflow** ([src/opspilot/workflow.py](src/opspilot/workflow.py))
-
-The workflow connects all components in a deterministic pipeline:
-
-```
-START
-  ↓
-retrieve_evidence (BM25 retrieval from logs & runbooks)
-  ↓
-triage_incident (Severity classification & timeline)
-  ↓
-generate_hypotheses (Ranked root cause hypotheses)
-  ↓
-verify_hypotheses (Independent verification)
-  ↓
-propose_remediation (Safe action recommendations)
-  ↓
-generate_report (Professional Markdown report)
-  ↓
-END
-```
-
-**Workflow Features**
-- **Typed State**: TypedDict-based state management for type safety
-- **Error Handling**: Safe error capture without exposing stack traces
-- **Deterministic**: Identical inputs produce identical outputs
-- **No LLM Calls**: Operates entirely offline in demo mode
-- **Safe Failure**: Each node handles missing data gracefully
-- **Dependency Enforcement**: Each node validates required inputs
-
-**Workflow State**
-- `incident`: Incident metadata
-- `investigation_query`: Query for evidence retrieval
-- `evidence`: Retrieved evidence chunks
-- `triage_result`: Triage assessment
-- `diagnosis_result`: Root cause hypotheses
-- `verification_result`: Verification outcomes
-- `remediation_plan`: Safe recommendations
-- `incident_report`: Markdown report
-- `workflow_status`: Current workflow status
-- `errors`: Safe error messages
-
-### Professional Incident Reporting (Completed)
-
-OpsPilot generates comprehensive, human-readable incident reports in Markdown format:
-
-**Report Generator** ([src/opspilot/reporting.py](src/opspilot/reporting.py))
-- Generates professional Markdown reports suitable for documentation
-- Includes all analysis phases with evidence citations
-- Clearly identifies verified vs. rejected hypotheses
-- Lists categorized remediation recommendations
-- Provides evidence references with source file and line number
-- Includes prominent human review warnings
-- Escapes special characters for safe Markdown rendering
-- Deterministic output (no timestamps unless provided)
-
-**Report Sections**
-1. **Executive Summary**: Severity, affected services, symptoms
-2. **Evidence-Based Timeline**: Chronological events with citations
-3. **Root Cause Analysis**: Verified hypotheses and rejected ones
-4. **Recommended Actions**: Categorized by type and risk level
-5. **Analysis Limitations**: Known gaps and constraints
-6. **Evidence References**: Source files and line ranges
-7. **Human Review Required**: Prominent safety warnings
-
-### Interactive Streamlit Interface (Completed)
-
-OpsPilot includes a professional web interface for incident investigation:
-
-**Application** ([app.py](app.py))
-- Clean, professional engineering tool design
-- Wide layout optimized for data-heavy views
-- Offline demo mode indicator
-- Human review safety warnings throughout
-- Session state management for persistent results
-
-**UI Features**
-
-*Incident Selection*
-- Displays incident metadata (ID, title, start time, status)
-- Shows affected services and reported symptoms
-- Lists available data files (logs, runbooks)
-
-*Investigation Controls*
-- Configurable investigation query with sensible defaults
-- Evidence limit control (5-30 chunks)
-- Run Investigation button to execute workflow
-- Reset button to clear results
-
-*Results Presentation* (5 tabs)
-
-1. **Overview Tab**
-   - Workflow status and key metrics
-   - Severity and confidence scores
-   - Affected services and symptoms
-   - Triage rationale
-   - Human review requirements
-
-2. **Timeline & Evidence Tab**
-   - Chronological timeline table with timestamps, services, descriptions
-   - Evidence table showing ID, source, type, line number, score, content
-   - Easy cross-referencing between timeline and evidence
-
-3. **Root Cause Hypotheses Tab**
-   - Hypotheses in ranked order
-   - Status badges (supported, partially supported, unsupported)
-   - Confidence scores and detailed reasoning
-   - Supporting evidence IDs with expandable details
-   - Missing evidence identification
-   - Rejected hypotheses listed separately
-   - Analysis limitations
-
-4. **Remediation Plan Tab**
-   - Actions grouped by category (investigation, containment, recovery, prevention)
-   - Priority ranking and risk levels (color-coded)
-   - Human approval requirements clearly marked
-   - Rationale, validation steps, and rollback considerations
-   - Supporting evidence IDs
-   - Plan limitations
-   - No execution buttons (recommendations only)
-
-5. **Incident Report Tab**
-   - Full Markdown report rendered
-   - Download button for report export
-   - Safe filename generation from incident ID
-
-*Sidebar*
-- Current mode indicator (Offline Demo / Live)
-- Workflow stages overview (6 steps)
-- Safety boundary explanation
-- Project version
-
-**UI Helpers** ([src/opspilot/ui.py](src/opspilot/ui.py))
-- Reusable presentation functions
-- Severity and status formatting
-- Table rendering for timeline and evidence
-- Card rendering for hypotheses and actions
-- No business logic duplication
-
-### Optional Live LLM Mode (Completed)
-
-OpsPilot supports two operating modes with identical workflows but different agent implementations:
-
-**Demo Mode** (default, no API key required)
-- Deterministic offline agents
-- Pattern-based triage and diagnosis
-- No network requests or API costs
+### Offline Demo Mode (Default)
+- **No API key required**
+- Deterministic pattern-based analysis
 - Fully reproducible results
-- Ideal for testing and development
+- No network requests or costs
+- Ideal for testing, development, and education
 
-**Live Mode** (requires OpenAI-compatible API)
-- LLM-powered triage and diagnosis
+### Live LLM Mode (Optional)
+- **Requires OpenAI-compatible API key**
+- LLM-powered triage and hypothesis generation
 - More flexible analysis of novel incidents
-- Structured JSON output with Pydantic validation
-- Safe error handling without exposing credentials
-- Compatible with OpenAI and OpenRouter
+- Works with OpenAI or OpenRouter
+- All LLM outputs independently verified
+- Human review still required
 
-**Architecture** ([src/opspilot/llm_client.py](src/opspilot/llm_client.py), [src/opspilot/agents/live_triage.py](src/opspilot/agents/live_triage.py), [src/opspilot/agents/live_diagnosis.py](src/opspilot/agents/live_diagnosis.py))
+**Both modes use:**
+- Identical deterministic evidence retrieval
+- Same independent verification process
+- Same remediation planning logic
+- Same reporting format
 
-*LLM Client Abstraction*
-- Protocol-based design for testing without network calls
-- OpenAI-compatible client with structured output
-- Bounded timeout and retry behavior
-- Safe exception conversion (never exposes API keys)
-- JSON response parsing with Pydantic validation
-
-*Live Agents*
-- Use same TriageResult and DiagnosisResult models as demo agents
-- Validate all evidence IDs before including in output
-- Clamp confidence values to valid ranges (max 0.95, never certain)
-- Limit evidence sent to API (max 20 chunks)
-- Truncate content to reasonable lengths
-- Prompts instruct model not to follow instructions in log text
-- Always require human review
-
-*Safety Guarantees*
-- Evidence retrieval always local and deterministic
-- All LLM hypotheses independently verified by deterministic verifier
-- Remediation only generated from verified information
-- No remediation actions ever executed
-- API key never logged, displayed, or included in errors
-- Graceful fallback to demo mode on configuration errors
-
-*Workflow Integration*
-- Mode selection via OPSPILOT_MODE environment variable
-- Agent injection for testability
-- Demo mode completely unchanged and deterministic
-- Live mode failures result in safe error status
-- Both modes use identical verification, remediation, and reporting
+---
 
 ## Architecture
+
+### LangGraph Workflow
+
+```mermaid
+graph TD
+    A[START] --> B[Retrieve Evidence]
+    B -->|BM25 Search| C[Triage Incident]
+    C -->|Severity + Timeline| D[Generate Hypotheses]
+    D -->|Ranked Hypotheses| E[Verify Hypotheses]
+    E -->|Verified Results| F[Plan Remediation]
+    F -->|Safe Actions| G[Generate Report]
+    G --> H[END]
+    
+    style B fill:#e1f5ff
+    style C fill:#fff4e1
+    style D fill:#ffe1e1
+    style E fill:#e1ffe1
+    style F fill:#f0e1ff
+    style G fill:#ffe1f5
+```
+
+### Safety Boundary
+
+```
+┌─────────────────────────────────────────┐
+│  Automated Analysis (No Approval)       │
+│  ├─ Evidence Retrieval                  │
+│  ├─ Triage Assessment                   │
+│  ├─ Hypothesis Generation               │
+│  ├─ Independent Verification            │
+│  └─ Report Generation                   │
+└─────────────────────────────────────────┘
+                   ↓
+         ⚠️  HUMAN REVIEW REQUIRED
+                   ↓
+┌─────────────────────────────────────────┐
+│  Actions Requiring Approval              │
+│  ├─ Validate Root Cause                 │
+│  ├─ Execute Remediation Steps           │
+│  ├─ Restart Services                    │
+│  ├─ Modify Configuration                │
+│  └─ Change Production Systems           │
+└─────────────────────────────────────────┘
+```
+
+### Repository Structure
 
 ```
 opspilot-agent/
 ├── src/opspilot/
-│   ├── agents/            # Agent implementations
-│   │   ├── triage.py      # Incident triage agent
-│   │   ├── diagnosis.py   # Root cause diagnosis agent
-│   │   ├── verifier.py    # Hypothesis verification agent
-│   │   └── remediation.py # Safe remediation planning agent
-│   ├── tools/             # Utilities and helper functions
-│   │   ├── log_parser.py       # Structured log parsing
-│   │   └── evidence_retriever.py # BM25-based retrieval
-│   ├── config.py          # Configuration management
-│   ├── models.py          # Pydantic data models
-│   ├── workflow.py        # LangGraph workflow orchestration
-│   └── reporting.py       # Markdown report generation
+│   ├── agents/              # Agent implementations
+│   │   ├── triage.py        # Demo triage (offline)
+│   │   ├── diagnosis.py     # Demo diagnosis (offline)
+│   │   ├── verifier.py      # Evidence verification
+│   │   ├── remediation.py   # Safe remediation planning
+│   │   ├── live_triage.py   # LLM triage (live mode)
+│   │   └── live_diagnosis.py # LLM diagnosis (live mode)
+│   ├── tools/               # Utilities
+│   │   ├── log_parser.py    # Structured log parsing
+│   │   └── evidence_retriever.py # BM25 evidence search
+│   ├── config.py            # Configuration management
+│   ├── models.py            # Pydantic data models
+│   ├── llm_client.py        # LLM client abstraction
+│   ├── workflow.py          # LangGraph workflow
+│   ├── reporting.py         # Markdown report generation
+│   └── ui.py                # Streamlit UI helpers
 ├── data/
-│   ├── incidents/         # Sample incident data
-│   └── runbooks/          # Operational runbooks
-├── tests/                 # Comprehensive test suite (107 tests)
-├── app.py                 # Streamlit application
-└── requirements.txt       # Python dependencies
+│   ├── incidents/           # Sample incident data
+│   │   ├── incident_001.json
+│   │   └── incident_001_logs.txt
+│   └── runbooks/            # Operational runbooks
+│       └── database_connection_pool.md
+├── tests/                   # Test suite (172 tests)
+├── app.py                   # Streamlit application
+├── requirements.txt         # Python dependencies
+├── .env.example             # Configuration template
+├── LICENSE                  # MIT License
+└── README.md                # This file
 ```
 
-### Workflow Diagram
+---
 
-```mermaid
-graph TD
-    A[START] --> B[retrieve_evidence]
-    B -->|Logs + Runbooks| C[triage_incident]
-    C -->|Severity + Timeline| D[generate_hypotheses]
-    D -->|Ranked Hypotheses| E[verify_hypotheses]
-    E -->|Verified Hypotheses| F[propose_remediation]
-    F -->|Safe Actions| G[generate_report]
-    G -->|Markdown Report| H[END]
-    
-    B -.->|Error| ERR[Safe Error State]
-    C -.->|Error| ERR
-    D -.->|Error| ERR
-    E -.->|Error| ERR
-    F -.->|Error| ERR
-    G -.->|Error| ERR
-```
-
-### Human Approval Boundary
-
-```
-┌─────────────────────────────────────────────────┐
-│  Automated Analysis (No Human Approval)         │
-│  ├── Evidence Retrieval (BM25)                  │
-│  ├── Incident Triage (Severity Classification)  │
-│  ├── Hypothesis Generation (Pattern Matching)   │
-│  ├── Hypothesis Verification (Evidence Check)   │
-│  └── Report Generation (Markdown Formatting)    │
-└─────────────────────────────────────────────────┘
-                       ↓
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃  ⚠️  HUMAN REVIEW REQUIRED                     ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-                       ↓
-┌─────────────────────────────────────────────────┐
-│  Actions Requiring Human Approval               │
-│  ├── Validate root cause hypotheses             │
-│  ├── Approve remediation actions                │
-│  ├── Execute configuration changes              │
-│  ├── Restart services                           │
-│  └── Modify production systems                  │
-└─────────────────────────────────────────────────┘
-```
-
-## Setup Instructions
+## Installation
 
 ### Prerequisites
 
-- Python 3.11 or higher
-- pip or uv for package management
+- **Python 3.11 or newer**
+- pip package manager
 - (Optional) OpenAI API key for live mode
 
-### Installation
+### Setup Instructions
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/opspilot-agent.git
-   cd opspilot-agent
-   ```
+#### Windows
 
-2. Create a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
+```powershell
+# Clone or extract the repository
+cd opspilot-agent
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate
 
-4. Configure environment (optional for demo mode):
-   ```bash
-   cp .env.example .env
-   # Edit .env with your settings
-   ```
+# Install dependencies
+pip install -r requirements.txt
 
-### Running the Application
+# Copy environment template
+copy .env.example .env
 
-**Demo Mode** (no API key required):
+# Edit .env if using live mode (optional)
+notepad .env
+```
+
+#### macOS / Linux
+
+```bash
+# Clone or extract the repository
+cd opspilot-agent
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy environment template
+cp .env.example .env
+
+# Edit .env if using live mode (optional)
+nano .env
+```
+
+---
+
+## Running OpsPilot
+
+### Streamlit Application
+
+**Demo Mode (No API Key Required):**
+
 ```bash
 streamlit run app.py
 ```
 
-The application will launch in your browser at `http://localhost:8501`
+The application will open at `http://localhost:8501`
 
-**Live Mode** (requires OpenAI API key):
+**Live Mode (Requires API Key):**
+
 ```bash
+# Set environment variables
 export OPSPILOT_MODE=live
-export OPENAI_API_KEY=sk-your-actual-key-here
+export OPENAI_API_KEY=sk-your-actual-key
+
+# Or configure in .env file, then:
 streamlit run app.py
 ```
 
 **OpenRouter Support:**
+
 ```bash
 export OPSPILOT_MODE=live
 export OPENAI_API_KEY=sk-or-your-openrouter-key
@@ -475,116 +254,225 @@ export OPENAI_MODEL=openai/gpt-4o-mini
 streamlit run app.py
 ```
 
-**Important Security Notes:**
-- Never commit your API key to version control
-- Never share your API key in screenshots or documentation
-- Use environment variables or .env file (not tracked by git)
-- Live mode API calls may incur provider costs
-- Always review costs before extensive testing
-
-**Live Mode Behavior:**
-- Uses LLM for triage severity assessment and hypothesis generation
-- Evidence retrieval remains deterministic and local (BM25)
-- Verification always uses deterministic evidence checking
-- Remediation only generated from verified hypotheses
-- All LLM outputs independently verified before use
-- Human review still required for all findings
-
 ### Running Tests
 
 ```bash
+# Run complete test suite (172 tests)
 pytest tests/
+
+# Run with verbose output
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_workflow.py -v
 ```
 
-All 136 tests should pass.
-
-## Using the Application
-
-### Quick Start
-
-1. Launch the Streamlit application:
-```bash
-streamlit run app.py
-```
-
-2. The application opens in your browser at `http://localhost:8501`
-
-3. Review the incident details displayed (sample incident loaded automatically)
-
-4. Click **"🔍 Run Investigation"** to execute the complete workflow
-
-5. View results across 5 tabs:
-   - **Overview**: Key metrics, severity, affected services
-   - **Timeline & Evidence**: Chronological events and evidence table
-   - **Root Cause Hypotheses**: Ranked hypotheses with verification status
-   - **Remediation Plan**: Safe action recommendations (categorized and risk-assessed)
-   - **Incident Report**: Full Markdown report with download button
-
-### What You'll See
-
-**After Running Investigation:**
-
-- **Severity Assessment**: SEV2 (High) classification
-- **Affected Services**: api-gateway, order-service, postgres
-- **Timeline**: 8 chronological events with evidence citations
-- **Evidence**: 15 chunks retrieved from logs and runbooks
-- **Hypotheses**: 2 generated hypotheses (both verified as supported)
-  - Database connection pool exhaustion (confidence: 0.95)
-  - Long-running query contribution (confidence: 0.45)
-- **Remediation**: 1 safe action recommendation (increase pool size - medium risk, approval required)
-- **Report**: 150-line professional Markdown report
-
-**Safety Features:**
-
-- All findings flagged for human review
-- No execution buttons for remediation actions
-- Clear risk levels and approval requirements
-- Multiple warnings throughout the interface
-- Download-only report (no automatic execution)
-
-### Customization
-
-**Investigation Query:**
-- Modify the query to focus on different aspects
-- Default: "database connection pool exhausted 503 errors"
-- Impacts which evidence chunks are retrieved
-
-**Evidence Limit:**
-- Adjust from 5-30 chunks
-- Default: 15 chunks
-- More evidence = more comprehensive but slower analysis
+---
 
 ## Configuration
 
-OpsPilot uses environment variables for configuration:
+### Environment Variables
+
+Create a `.env` file from the template:
+
+```bash
+cp .env.example .env
+```
+
+**Available Settings:**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPSPILOT_MODE` | `demo` | Operating mode: `demo` or `live` |
-| `OPENAI_API_KEY` | None | OpenAI API key (optional in demo mode) |
-| `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model to use |
+| `OPENAI_API_KEY` | None | API key (required for live mode) |
+| `OPENAI_BASE_URL` | None | Custom API endpoint (for OpenRouter) |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Model identifier |
+| `LLM_TIMEOUT_SECONDS` | `60` | API call timeout (10-300) |
+| `LLM_MAX_RETRIES` | `2` | Maximum retry attempts (0-3) |
 
-## Safety Notice
+### ⚠️ Security Warning
 
-⚠️ All remediation recommendations generated by OpsPilot require human review before implementation. Always validate suggestions against your specific environment and follow your organization's change management procedures.
+**NEVER commit your `.env` file or API credentials to version control!**
 
-## Development Notes
+- The `.env` file contains your API key and is excluded by `.gitignore`
+- Only `.env.example` (with placeholders) should be committed
+- API usage in live mode incurs provider costs
+- Keep your API key confidential
 
-This project is an **independent implementation** developed as a portfolio project. It is inspired by the general concept of AI-assisted incident diagnosis but does not copy or derive from any existing open-source projects like HolmesGPT or similar tools.
+---
 
-## Technology Stack
+## Sample Incident
 
-- **LangGraph**: Multi-agent orchestration
-- **OpenAI API**: Language model integration
-- **Streamlit**: Interactive web interface
-- **Pydantic**: Configuration and data validation
-- **BM25**: Evidence retrieval
-- **pytest**: Testing framework
+OpsPilot includes a synthetic incident for demonstration:
+
+**Incident ID:** INC-2024-001  
+**Title:** Order Service API Unavailable - High Latency and 503 Errors  
+**Scenario:** Database connection pool exhaustion
+
+**Timeline:**
+1. Reporting worker starts long-running query (14:15:03)
+2. Connection pool gradually exhausts (14:20:16)
+3. Order service experiences timeouts
+4. API gateway returns HTTP 503 errors
+5. Query completes and services recover (14:26:05)
+
+**Included Data:**
+- `incident_001.json` - Incident metadata
+- `incident_001_logs.txt` - 34 timestamped log entries
+- `database_connection_pool.md` - Operational runbook
+
+**Expected Results:**
+- Severity: SEV2 (High)
+- Verified Hypothesis: Connection pool exhaustion (confidence: 0.90-0.95)
+- Remediation: Increase pool size, implement monitoring
+
+This realistic scenario demonstrates evidence-grounded analysis without using real production data.
+
+---
+
+## Safety and Limitations
+
+### Safety Guarantees
+
+✅ **Evidence-Grounded:** All conclusions cite specific evidence  
+✅ **Human Review Required:** No automatic execution of remediation  
+✅ **Independent Verification:** LLM outputs verified by deterministic logic  
+✅ **Confidence Capped:** Never claims certainty (max 0.95)  
+✅ **Fabrication Detection:** Rejects hypotheses without supporting evidence  
+✅ **Safe Error Handling:** Never exposes API keys or credentials  
+
+### Current Limitations
+
+**Scope:**
+- Single incident analysis (no trend detection)
+- Text-based logs only (no metrics or traces)
+- English language only
+- Structured log format required
+
+**Analysis:**
+- Correlation vs. causation explicitly noted
+- Limited to patterns recognizable in logs
+- Cannot verify hypotheses without additional tools
+- No real-time monitoring integration
+
+**Scale:**
+- Evidence limited to top-k chunks
+- Single organization's runbooks only
+- No distributed tracing support
+
+### Future Improvements
+
+- Multi-incident correlation
+- Metrics and traces integration
+- Real-time monitoring hooks
+- Distributed tracing support
+- Multi-language support
+- Custom log format adapters
+- Integration with incident management tools (PagerDuty, Jira)
+
+---
+
+## Open-Source Reference
+
+**Project:** HolmesGPT  
+**GitHub:** https://github.com/HolmesGPT/holmesgpt  
+**Description:** HolmesGPT is a comprehensive AI-assisted SRE investigation platform by Robusta that provides intelligent runbook execution, alert investigation, and incident analysis capabilities for Kubernetes environments.
+
+**Relationship to OpsPilot:**
+
+OpsPilot is a smaller, **independent educational implementation** focused specifically on evidence-grounded incident diagnosis. While HolmesGPT inspired the problem space, OpsPilot was designed and implemented independently with different architecture choices:
+
+- **HolmesGPT:** Production-ready platform with Kubernetes integration, Prometheus metrics, and comprehensive tool ecosystem
+- **OpsPilot:** Educational project focusing on evidence-based reasoning, verification, and human-review boundaries
+
+**No HolmesGPT source code was copied or derived.** OpsPilot was built from scratch as a learning exercise in LLM application development, multi-agent systems, and safe AI deployment.
+
+---
+
+## AI-Assisted Development
+
+This project was developed with assistance from AI coding tools:
+
+**Tools Used:**
+
+- **ChatGPT/Claude** - Project planning, architecture design, debugging assistance, testing strategy, and documentation guidance
+- **GitHub Copilot Agent** - Code generation, refactoring suggestions, test generation, and implementation assistance
+
+**Development Process:**
+
+1. **AI-Generated Content:** AI tools provided code suggestions, architectural patterns, test cases, and documentation drafts
+2. **Human Review:** All generated code was reviewed, tested, and validated by the project author
+3. **Execution and Testing:** Code was executed locally, tested with 172 automated tests, and manually verified in the Streamlit application
+4. **Version Control:** All changes tracked in git with human-authored commit messages
+5. **Validation:** AI suggestions were not accepted as proof of correctness - automated tests and manual application testing were used to verify functionality
+
+**Learning Outcomes:**
+
+This project demonstrates the effective use of AI pair programming tools while maintaining:
+- Code quality through comprehensive testing
+- Security through manual review of generated code
+- Understanding through hands-on implementation and debugging
+- Ownership through independent architectural decisions
+
+---
+
+## Testing
+
+OpsPilot includes **172 automated tests** covering:
+
+- Configuration management and validation
+- Evidence retrieval and log parsing
+- Triage assessment logic
+- Hypothesis generation and ranking
+- Independent verification
+- Remediation planning
+- Report generation
+- LLM client abstraction
+- Live mode integration
+- UI components
+- Workflow orchestration
+- Security (credential protection)
+
+**Test Coverage:**
+- Unit tests for individual components
+- Integration tests for workflow
+- Fake LLM client for offline testing
+- No network requests in test suite
+
+Run tests with:
+```bash
+pytest tests/ -v
+```
+
+---
 
 ## License
 
 MIT License - See [LICENSE](LICENSE) file for details.
 
-## Contributing
+Copyright (c) 2026 Ali Tariq
 
-This is a personal portfolio project. While it's not actively seeking contributions, feedback and suggestions are welcome through GitHub issues.
+---
+
+## Acknowledgments
+
+- **HolmesGPT** for inspiration in the SRE AI agent space
+- **LangChain/LangGraph** for workflow orchestration patterns
+- **Streamlit** for rapid UI development
+- **Pydantic** for data validation
+- **OpenAI** for LLM API compatibility standards
+
+---
+
+## Support and Contributing
+
+This is an educational portfolio project developed for academic purposes. While it's not actively seeking contributions, feedback and suggestions are welcome through GitHub issues.
+
+**For Questions:**
+- Review the documentation above
+- Check the test suite for usage examples
+- Examine the sample incident for expected behavior
+
+---
+
+**Built with** ❤️ **for the SRE community**
