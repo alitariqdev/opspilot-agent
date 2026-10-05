@@ -153,6 +153,13 @@ opspilot-agent/
 │   │   ├── log_parser.py    # Structured log parsing
 │   │   ├── container_log_parser.py # Docker/Kubernetes log parsing
 │   │   └── evidence_retriever.py # BM25 evidence search
+│   ├── evaluation/          # Benchmark framework
+│   │   ├── models.py        # Benchmark data models
+│   │   ├── metrics.py       # Metric calculation
+│   │   ├── executor.py      # Benchmark execution
+│   │   ├── reporter.py      # Report generation
+│   │   ├── runner.py        # CLI runner
+│   │   └── __main__.py      # Module entry point
 │   ├── config.py            # Configuration management
 │   ├── models.py            # Pydantic data models
 │   ├── llm_client.py        # LLM client abstraction
@@ -165,12 +172,17 @@ opspilot-agent/
 │   ├── incidents/           # Sample incident data
 │   │   ├── incident_001.json
 │   │   ├── incident_001_logs.txt (plain text)
+│   │   ├── incident_002.json + incident_002_http_503.txt
+│   │   ├── incident_003.json + incident_003_crashloop.docker.log
+│   │   ├── incident_004.json + incident_004_insufficient.txt
 │   │   ├── order-service-a3f8d2.docker.log (Docker)
 │   │   ├── api-gateway-7b9c4e.docker.log (Docker)
 │   │   ├── postgres-pod_default_postgres.k8s.log (Kubernetes)
 │   │   └── reporting-worker-pod_jobs_worker.k8s.log (Kubernetes)
-│   └── runbooks/            # Operational runbooks
-│       └── database_connection_pool.md
+│   ├── runbooks/            # Operational runbooks
+│   │   └── database_connection_pool.md
+│   └── evaluation/          # Benchmark cases
+│       └── benchmark_cases.json
 ├── tests/                   # Test suite (205 tests)
 ├── app.py                   # Streamlit application
 ├── requirements.txt         # Python dependencies
@@ -223,6 +235,9 @@ source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install OpsPilot package (required for CLI tools)
+pip install -e .
 
 # Copy environment template
 cp .env.example .env
@@ -307,7 +322,7 @@ OpsPilot supports two evidence modes:
 ### Running Tests
 
 ```bash
-# Run complete test suite (264 tests)
+# Run complete test suite (311 tests)
 pytest tests/
 
 # Run with verbose output
@@ -496,6 +511,127 @@ This realistic scenario demonstrates evidence-grounded analysis without using re
 
 ---
 
+## Evaluation Benchmark
+
+OpsPilot includes an offline evaluation framework to measure and demonstrate system quality.
+
+### Purpose
+
+The benchmark provides:
+- **Reproducible evaluation** - Deterministic offline mode requires no API key
+- **Quality metrics** - Quantitative assessment of diagnosis accuracy
+- **Regression detection** - Detect quality degradation during development
+- **Demonstrable results** - Clear metrics for portfolio/interview presentation
+
+### Running the Benchmark
+
+**Prerequisites:**
+```bash
+# Install the OpsPilot package first (if not already done)
+pip install -e .
+```
+
+**Run the benchmark:**
+```bash
+# Run evaluation benchmark (offline, no API key required)
+python -m opspilot.evaluation.runner
+```
+
+**Output locations:**
+- **Console:** Concise summary with aggregate metrics
+- **JSON:** `evaluation_results/benchmark_demo.json` (machine-readable)
+- **Markdown:** `evaluation_results/benchmark_demo.md` (human-readable)
+
+### Benchmark Scenarios
+
+The evaluation includes 4 labeled synthetic incidents:
+
+1. **case_001_connection_pool** - Database connection pool exhaustion
+   - Expected: SEV2, services detected, connection/pool concepts
+   
+2. **case_002_http_503** - Repeated HTTP 503 service unavailable errors
+   - Expected: SEV2, API gateway + order service, 503/gateway concepts
+   
+3. **case_003_container_crashloop** - Container restart and crash loop (OOMKilled)
+   - Expected: SEV2, payment service, crash/memory/restart concepts
+   
+4. **case_004_insufficient_evidence** - Minimal evidence, no clear diagnosis
+   - Expected: SEV4, no services, most claims rejected
+
+### Metrics
+
+**Severity Accuracy:**
+- Ratio of cases where predicted severity matches expected
+- Range: 0.0 to 1.0 (higher is better)
+
+**Service Identification:**
+- **Precision:** TP / (TP + FP) - Accuracy of predicted services
+- **Recall:** TP / (TP + FN) - Coverage of expected services
+- **F1:** Harmonic mean of precision and recall
+- Range: 0.0 to 1.0 (higher is better)
+
+**Diagnosis Quality:**
+- **Precision:** Relevant concepts / Predicted concepts
+- **Recall:** Relevant concepts / Expected concepts
+- Extracted from verified hypothesis text (title, description)
+- Range: 0.0 to 1.0 (higher is better)
+
+**Citation Validity:**
+- Ratio of cited evidence IDs that exist in available evidence
+- Validates that all citations reference real evidence
+- Range: 0.0 to 1.0 (1.0 = all citations valid)
+
+**Rejected Claim Rate:**
+- Ratio of expected-rejected concepts found in rejected hypotheses
+- Measures ability to reject unsupported claims
+- Range: 0.0 to 1.0 (higher is better)
+
+**Execution Success:**
+- Whether workflow completed without errors
+- Binary: success or failure per case
+
+### Live Mode Comparison (Optional)
+
+If a valid API key is configured:
+```bash
+# Configure live mode in .env
+OPSPILOT_MODE=live
+OPENAI_API_KEY=sk-your-key
+
+# Run benchmark (includes both demo and live)
+python -m src.opspilot.evaluation.runner
+```
+
+Output includes both `benchmark_demo.json/md` and `benchmark_live.json/md` for comparison.
+
+**Note:** Live mode is optional. The default benchmark runs entirely offline.
+
+### Limitations
+
+- **Synthetic scenarios:** Not real production incidents
+- **Small dataset:** 4 cases (not statistically significant)
+- **Keyword matching:** Diagnosis precision uses simple keyword extraction
+- **No ground truth:** Expected values are approximate, not absolute
+- **Deterministic only:** Demo mode uses pattern-based agents, not LLMs
+
+### Example Results
+
+Typical demo mode results:
+```
+Total Cases: 4
+Successful: 4/4
+
+Aggregate Metrics:
+  Severity Accuracy:     75%
+  Service F1:            35%
+  Diagnosis Recall:      39%
+  Citation Validity:     100%
+```
+
+Results demonstrate system capabilities for technical interviews and portfolio reviews.
+
+---
+
 ## Safety and Limitations
 
 ### Safety Guarantees
@@ -571,6 +707,7 @@ This project demonstrates incremental feature development with AI assistance:
 - **Initial implementation** (Phases 1-5): Core incident investigation workflow with offline demo mode and optional live LLM mode
 - **Container log ingestion** (GitHub Issue #2): Docker and Kubernetes log parsing, metadata extraction, and integration with existing evidence retrieval system
 - **User file uploads** (GitHub Issue #1): File validation, in-memory processing, upload UI, and integration with investigation workflow
+- **Evaluation benchmark** (GitHub Issue #5): Offline evaluation framework with labeled scenarios, quality metrics, deterministic execution, and JSON/Markdown reporting
 
 **Development Process:**
 
@@ -592,7 +729,7 @@ This project demonstrates the effective use of AI pair programming tools while m
 
 ## Testing
 
-OpsPilot includes **264 automated tests** covering:
+OpsPilot includes **311 automated tests** covering:
 
 - Configuration management and validation
 - Evidence retrieval and log parsing
@@ -601,6 +738,9 @@ OpsPilot includes **264 automated tests** covering:
 - **Container evidence retrieval** (8 integration tests)
 - **File upload validation** (36 tests)
 - **Upload handler and processing** (23 tests)
+- **Evaluation metrics** (26 tests)
+- **Benchmark execution** (15 tests)
+- **CLI integration** (6 tests)
 - Triage assessment logic
 - Hypothesis generation and ranking
 - Independent verification

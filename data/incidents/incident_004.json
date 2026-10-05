@@ -1,0 +1,14 @@
+{
+  "incident_id": "INC-2024-004",
+  "title": "Unknown Service Degradation Report",
+  "description": "User reported potential service issues but monitoring shows all health checks passing. Insufficient evidence to determine root cause.",
+  "symptoms": [
+    "Vague user report of slowness",
+    "No clear error patterns",
+    "All health checks passing"
+  ],
+  "start_time": "2024-03-18T09:00:00Z",
+  "affected_services": [],
+  "severity": "low",
+  "status": "monitoring"
+}

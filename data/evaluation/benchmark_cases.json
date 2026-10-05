@@ -1,0 +1,94 @@
+[
+  {
+    "case_id": "case_001_connection_pool",
+    "name": "Database Connection Pool Exhaustion",
+    "description": "Tests detection of connection pool exhaustion with long-running query causing service degradation",
+    "incident_id": "INC-2024-001",
+    "log_file": "incident_001_logs.txt",
+    "runbook_dir": "runbooks",
+    "expected": {
+      "severity": "SEV2",
+      "affected_services": ["order-service", "reporting-worker", "postgres"],
+      "diagnosis_concepts": [
+        "connection",
+        "pool",
+        "exhausted",
+        "exhaustion",
+        "database",
+        "query",
+        "timeout"
+      ],
+      "must_cite_evidence": [],
+      "rejected_claims": ["hardware", "network", "security", "breach"]
+    }
+  },
+  {
+    "case_id": "case_002_http_503",
+    "name": "HTTP 503 Service Unavailable",
+    "description": "Tests detection of repeated HTTP 503 errors from API gateway indicating service failure",
+    "incident_id": "INC-2024-002",
+    "log_file": "incident_002_http_503.txt",
+    "runbook_dir": "runbooks",
+    "expected": {
+      "severity": "SEV2",
+      "affected_services": ["api-gateway", "order-service"],
+      "diagnosis_concepts": [
+        "503",
+        "unavailable",
+        "gateway",
+        "upstream",
+        "service",
+        "timeout",
+        "response"
+      ],
+      "must_cite_evidence": [],
+      "rejected_claims": ["database", "memory", "disk", "cpu"]
+    }
+  },
+  {
+    "case_id": "case_003_container_crashloop",
+    "name": "Container Crash Loop",
+    "description": "Tests detection of container restart and crash loop behavior from Docker logs",
+    "incident_id": "INC-2024-003",
+    "log_file": "incident_003_crashloop.docker.log",
+    "runbook_dir": "runbooks",
+    "expected": {
+      "severity": "SEV2",
+      "affected_services": ["payment-service"],
+      "diagnosis_concepts": [
+        "crash",
+        "restart",
+        "exit",
+        "error",
+        "failed",
+        "memory",
+        "oom"
+      ],
+      "must_cite_evidence": [],
+      "rejected_claims": ["network", "connection", "timeout", "pool"]
+    }
+  },
+  {
+    "case_id": "case_004_insufficient_evidence",
+    "name": "Insufficient Evidence Scenario",
+    "description": "Tests handling of insufficient evidence where no clear root cause can be determined",
+    "incident_id": "INC-2024-004",
+    "log_file": "incident_004_insufficient.txt",
+    "runbook_dir": "runbooks",
+    "expected": {
+      "severity": "SEV4",
+      "affected_services": [],
+      "diagnosis_concepts": [],
+      "must_cite_evidence": [],
+      "rejected_claims": [
+        "connection",
+        "pool",
+        "database",
+        "crash",
+        "memory",
+        "disk",
+        "network"
+      ]
+    }
+  }
+]

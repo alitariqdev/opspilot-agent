@@ -1,0 +1,15 @@
+{
+  "incident_id": "INC-2024-002",
+  "title": "API Gateway Reporting HTTP 503 Errors",
+  "description": "Multiple API requests returning HTTP 503 Service Unavailable. Order service appears to be rejecting requests with repeated failures.",
+  "symptoms": [
+    "HTTP 503 errors from API gateway",
+    "Order service returning service unavailable responses",
+    "High error rate on order endpoints",
+    "Circuit breaker activation"
+  ],
+  "start_time": "2024-03-16T11:10:00Z",
+  "affected_services": ["api-gateway", "order-service"],
+  "severity": "high",
+  "status": "investigating"
+}

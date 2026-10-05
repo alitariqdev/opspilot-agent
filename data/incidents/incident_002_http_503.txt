@@ -1,0 +1,21 @@
+2024-03-16T10:15:03Z INFO [api-gateway] Gateway started on port 8080
+2024-03-16T10:30:15Z INFO [order-service] Service started successfully
+2024-03-16T10:45:22Z INFO [api-gateway] Received GET request to /api/orders/list from 203.0.113.15
+2024-03-16T10:45:23Z INFO [api-gateway] Upstream service order-service returned 200 for GET /api/orders/list
+2024-03-16T11:10:08Z INFO [order-service] Received POST request to /api/orders/create from 203.0.113.42
+2024-03-16T11:10:10Z ERROR [order-service] Request processing failed: Internal server error
+2024-03-16T11:10:10Z ERROR [order-service] Returning HTTP 503 Service Unavailable
+2024-03-16T11:10:11Z INFO [api-gateway] Upstream service order-service returned 503 for POST /api/orders/create
+2024-03-16T11:12:33Z INFO [order-service] Received GET request to /api/orders/status from 203.0.113.58
+2024-03-16T11:12:35Z ERROR [order-service] Request processing failed: Service unavailable
+2024-03-16T11:12:35Z ERROR [order-service] Returning HTTP 503 Service Unavailable
+2024-03-16T11:12:35Z INFO [api-gateway] Upstream service order-service returned 503 for GET /api/orders/status
+2024-03-16T11:15:47Z WARN [api-gateway] High error rate detected: 75% requests returning 503
+2024-03-16T11:16:05Z INFO [order-service] Received POST request to /api/orders/create from 203.0.113.91
+2024-03-16T11:16:07Z ERROR [order-service] Request processing failed: Service temporarily unavailable
+2024-03-16T11:16:07Z ERROR [order-service] Returning HTTP 503 Service Unavailable
+2024-03-16T11:16:07Z INFO [api-gateway] Upstream service order-service returned 503 for POST /api/orders/create
+2024-03-16T11:18:22Z ERROR [api-gateway] Circuit breaker activated for order-service due to repeated failures
+2024-03-16T11:20:05Z INFO [order-service] Received health check request
+2024-03-16T11:20:06Z ERROR [order-service] Health check failed: service not ready
+2024-03-16T11:20:06Z WARN [api-gateway] order-service health check failed - marking instance unhealthy
