@@ -28,9 +28,11 @@ This process is time-consuming, error-prone, and requires extensive domain knowl
 - Parses structured log files preserving line numbers
 - **Docker container log support** (JSON format)
 - **Kubernetes pod log support** (timestamped format)
+- **User file upload support** (logs and runbooks, 10 MB limit)
 - Extracts and indexes container/pod metadata
 - Indexes operational runbooks for diagnostic guidance
 - Retrieves top-k most relevant evidence chunks
+- In-memory processing (uploaded files never saved to disk)
 
 **2. Incident Triage**
 - Automated severity classification (SEV1-SEV4)
@@ -156,7 +158,9 @@ opspilot-agent/
 │   ├── llm_client.py        # LLM client abstraction
 │   ├── workflow.py          # LangGraph workflow
 │   ├── reporting.py         # Markdown report generation
-│   └── ui.py                # Streamlit UI helpers
+│   ├── ui.py                # Streamlit UI helpers
+│   ├── upload_validator.py  # File upload validation
+│   └── upload_handler.py    # Upload processing
 ├── data/
 │   ├── incidents/           # Sample incident data
 │   │   ├── incident_001.json
@@ -262,10 +266,48 @@ export OPENAI_MODEL=openai/gpt-4o-mini
 streamlit run app.py
 ```
 
+### Using the Application
+
+OpsPilot supports two evidence modes:
+
+1. **Sample Incident (Demo)** - Use the included sample incident with pre-loaded logs and runbooks
+2. **Upload Your Own Files** - Upload custom logs and runbooks for investigation
+
+#### Upload Custom Evidence
+
+**Accepted Log Formats:**
+- **Extensions:** `.log`, `.txt`
+- **Formats:** Plain text, Docker JSON, Kubernetes timestamped
+- **Maximum size:** 10 MB per file
+- **Multiple files:** Upload as many as needed
+
+**Accepted Runbook Formats:**
+- **Extensions:** `.md`, `.txt`
+- **Content:** Markdown or plain text documentation
+- **Maximum size:** 10 MB per file
+- **Multiple files:** Upload as many as needed
+
+**Upload Process:**
+1. Select "Upload Your Own Files" as evidence source
+2. Fill in incident details (ID, title, description)
+3. Upload log files using the "Choose log files" uploader
+4. Upload runbooks using the "Choose runbook files" uploader
+5. Verify upload status shows loaded entries
+6. Configure investigation query and run investigation
+
+**Security Guarantees:**
+- ✅ All processing happens in-memory (files never saved to disk)
+- ✅ Uploaded content treated as untrusted evidence text
+- ✅ No execution of log content, commands, or scripts
+- ✅ Safe error messages (no internal paths or stack traces)
+- ✅ File size limits prevent resource exhaustion
+- ✅ Only allowed extensions accepted
+- ✅ Binary and malformed files rejected safely
+
 ### Running Tests
 
 ```bash
-# Run complete test suite (172 tests)
+# Run complete test suite (264 tests)
 pytest tests/
 
 # Run with verbose output
@@ -528,6 +570,7 @@ This project was developed with assistance from AI coding tools:
 This project demonstrates incremental feature development with AI assistance:
 - **Initial implementation** (Phases 1-5): Core incident investigation workflow with offline demo mode and optional live LLM mode
 - **Container log ingestion** (GitHub Issue #2): Docker and Kubernetes log parsing, metadata extraction, and integration with existing evidence retrieval system
+- **User file uploads** (GitHub Issue #1): File validation, in-memory processing, upload UI, and integration with investigation workflow
 
 **Development Process:**
 
@@ -549,13 +592,15 @@ This project demonstrates the effective use of AI pair programming tools while m
 
 ## Testing
 
-OpsPilot includes **205 automated tests** covering:
+OpsPilot includes **264 automated tests** covering:
 
 - Configuration management and validation
 - Evidence retrieval and log parsing
 - **Docker container log parsing** (25 tests)
 - **Kubernetes pod log parsing** (integrated in container tests)
 - **Container evidence retrieval** (8 integration tests)
+- **File upload validation** (36 tests)
+- **Upload handler and processing** (23 tests)
 - Triage assessment logic
 - Hypothesis generation and ranking
 - Independent verification
@@ -565,7 +610,7 @@ OpsPilot includes **205 automated tests** covering:
 - Live mode integration
 - UI components
 - Workflow orchestration
-- Security (credential protection)
+- Security (credential protection, untrusted content handling)
 
 **Test Coverage:**
 - Unit tests for individual components

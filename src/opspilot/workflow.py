@@ -60,6 +60,9 @@ class InvestigationState(TypedDict):
         incident_report: Generated Markdown report
         workflow_status: Current workflow status
         errors: List of error messages
+        triage_agent: Optional custom triage agent
+        diagnosis_agent: Optional custom diagnosis agent
+        evidence_retriever: Optional pre-built evidence retriever (for uploads)
     """
 
     incident: Optional[Incident]
@@ -74,6 +77,7 @@ class InvestigationState(TypedDict):
     errors: List[str]
     triage_agent: Optional[Any]
     diagnosis_agent: Optional[Any]
+    evidence_retriever: Optional[Any]
 
 
 def retrieve_evidence_node(state: InvestigationState) -> InvestigationState:
@@ -103,6 +107,20 @@ def retrieve_evidence_node(state: InvestigationState) -> InvestigationState:
             query_parts.extend(incident.symptoms[:3])  # Top 3 symptoms
             investigation_query = " ".join(query_parts)
 
+        # Check if custom evidence retriever was provided (for uploads)
+        custom_retriever = state.get("evidence_retriever")
+
+        if custom_retriever:
+            # Use pre-built retriever from uploaded files
+            evidence = custom_retriever.retrieve(investigation_query, top_k=15)
+
+            return {
+                **state,
+                "evidence": evidence,
+                "workflow_status": "evidence_retrieved",
+            }
+
+        # Default behavior: load sample incident data
         # Find incident log file
         incident_dir = Path("data/incidents")
 
@@ -428,6 +446,7 @@ def run_investigation(
     config: Optional[OpsPilotConfig] = None,
     triage_agent: Optional[Any] = None,
     diagnosis_agent: Optional[Any] = None,
+    evidence_retriever: Optional[Any] = None,
 ) -> InvestigationState:
     """Run complete incident investigation workflow.
 
@@ -437,6 +456,7 @@ def run_investigation(
         config: Optional configuration (loads from environment if not provided)
         triage_agent: Optional triage agent (uses mode-appropriate default if not provided)
         diagnosis_agent: Optional diagnosis agent (uses mode-appropriate default if not provided)
+        evidence_retriever: Optional pre-built evidence retriever (for user uploads)
 
     Returns:
         Final investigation state with all results
@@ -446,6 +466,7 @@ def run_investigation(
         - Demo mode: Uses deterministic offline agents (no LLM calls)
         - Live mode: Uses LLM-powered agents (requires API key)
         - Verification, remediation, and reporting are always deterministic
+        - If evidence_retriever is provided, uses it instead of loading sample data
     """
     # Load configuration if not provided
     if config is None:
@@ -499,6 +520,7 @@ def run_investigation(
         "errors": [],
         "triage_agent": triage_agent,
         "diagnosis_agent": diagnosis_agent,
+        "evidence_retriever": evidence_retriever,
     }
 
     # Run workflow
