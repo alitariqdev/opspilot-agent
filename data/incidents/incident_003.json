@@ -1,0 +1,16 @@
+{
+  "incident_id": "INC-2024-003",
+  "title": "Payment Service Container Crash Loop",
+  "description": "Payment service container repeatedly crashing and restarting. Container exits with code 137 indicating OOM kill. CrashLoopBackOff detected.",
+  "symptoms": [
+    "Container restart loop",
+    "Out of memory errors",
+    "Exit code 137",
+    "Service unavailability",
+    "CrashLoopBackOff state"
+  ],
+  "start_time": "2024-03-17T08:15:00Z",
+  "affected_services": ["payment-service"],
+  "severity": "high",
+  "status": "investigating"
+}
