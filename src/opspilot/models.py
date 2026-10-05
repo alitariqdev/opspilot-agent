@@ -43,6 +43,11 @@ class LogEntry(BaseModel):
         message: Log message content
         source_file: Original log file name
         line_number: Line number in the source file
+        container_id: Container ID (Docker/Kubernetes)
+        container_name: Container name (Docker/Kubernetes)
+        pod_name: Pod name (Kubernetes only)
+        namespace: Namespace (Kubernetes only)
+        log_source: Log source type (plain, docker, kubernetes)
     """
 
     timestamp: str = Field(description="Log timestamp (ISO 8601)")
@@ -51,6 +56,21 @@ class LogEntry(BaseModel):
     message: str = Field(description="Log message")
     source_file: str = Field(description="Source log file")
     line_number: int = Field(description="Line number in source file")
+    container_id: Optional[str] = Field(
+        default=None, description="Container ID (Docker/Kubernetes)"
+    )
+    container_name: Optional[str] = Field(
+        default=None, description="Container name (Docker/Kubernetes)"
+    )
+    pod_name: Optional[str] = Field(
+        default=None, description="Pod name (Kubernetes only)"
+    )
+    namespace: Optional[str] = Field(
+        default=None, description="Namespace (Kubernetes only)"
+    )
+    log_source: str = Field(
+        default="plain", description="Log source type (plain, docker, kubernetes)"
+    )
 
 
 class EvidenceChunk(BaseModel):
