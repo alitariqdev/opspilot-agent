@@ -78,17 +78,18 @@ def parse_log_file(file_path: Path) -> List[LogEntry]:
     return entries
 
 
-def parse_log_files(log_directory: Path) -> List[LogEntry]:
+def parse_log_files(log_directory: Path, include_container_logs: bool = True) -> List[LogEntry]:
     """Parse all log files in a directory.
 
     Args:
         log_directory: Directory containing log files
+        include_container_logs: Whether to parse Docker/Kubernetes logs (default: True)
 
     Returns:
         List of all parsed LogEntry objects from all files
 
     Note:
-        Processes only .txt and .log files.
+        Processes plain text logs (.txt, .log) and container logs (.docker.log, .k8s.log).
         Skips files that cannot be read.
     """
     all_entries: List[LogEntry] = []
@@ -96,7 +97,22 @@ def parse_log_files(log_directory: Path) -> List[LogEntry]:
     if not log_directory.exists():
         return all_entries
 
+    # Import container parser if needed
+    if include_container_logs:
+        try:
+            from src.opspilot.tools.container_log_parser import parse_container_logs
+            container_entries = parse_container_logs(log_directory)
+            all_entries.extend(container_entries)
+        except ImportError:
+            pass
+
+    # Parse plain text logs
     for log_file in log_directory.glob("*"):
+        # Skip container logs (already processed) and non-log files
+        name_lower = log_file.name.lower()
+        if ".docker." in name_lower or ".k8s." in name_lower or ".kubernetes." in name_lower:
+            continue
+
         if log_file.suffix in [".txt", ".log"] and log_file.is_file():
             try:
                 entries = parse_log_file(log_file)

@@ -58,15 +58,37 @@ class EvidenceRetriever:
         for entry in log_entries:
             # Combine timestamp, level, service, and message for searchability
             content = f"{entry.timestamp} {entry.level} {entry.service} {entry.message}"
+
+            # Add container/pod info for searchability if available
+            if entry.container_name:
+                content += f" container:{entry.container_name}"
+            if entry.pod_name:
+                content += f" pod:{entry.pod_name}"
+            if entry.namespace:
+                content += f" namespace:{entry.namespace}"
+
+            # Build metadata dict
+            metadata = {
+                "source_file": entry.source_file,
+                "source_type": "log",
+                "line_number": entry.line_number,
+                "content": content,
+            }
+
+            # Add container metadata if present
+            if entry.container_id:
+                metadata["container_id"] = entry.container_id
+            if entry.container_name:
+                metadata["container_name"] = entry.container_name
+            if entry.pod_name:
+                metadata["pod_name"] = entry.pod_name
+            if entry.namespace:
+                metadata["namespace"] = entry.namespace
+            if entry.log_source:
+                metadata["log_source"] = entry.log_source
+
             self.corpus.append(content)
-            self.evidence_metadata.append(
-                {
-                    "source_file": entry.source_file,
-                    "source_type": "log",
-                    "line_number": entry.line_number,
-                    "content": content,
-                }
-            )
+            self.evidence_metadata.append(metadata)
 
     def index_runbook(self, runbook_path: Path) -> None:
         """Index a runbook markdown file for retrieval.
@@ -155,6 +177,19 @@ class EvidenceRetriever:
                 metadata["source_file"], metadata["line_number"]
             )
 
+            # Build evidence metadata dict for container info
+            evidence_metadata = {}
+            if "container_id" in metadata:
+                evidence_metadata["container_id"] = metadata["container_id"]
+            if "container_name" in metadata:
+                evidence_metadata["container_name"] = metadata["container_name"]
+            if "pod_name" in metadata:
+                evidence_metadata["pod_name"] = metadata["pod_name"]
+            if "namespace" in metadata:
+                evidence_metadata["namespace"] = metadata["namespace"]
+            if "log_source" in metadata:
+                evidence_metadata["log_source"] = metadata["log_source"]
+
             chunk = EvidenceChunk(
                 evidence_id=evidence_id,
                 source_file=metadata["source_file"],
@@ -162,6 +197,7 @@ class EvidenceRetriever:
                 line_number=metadata["line_number"],
                 content=metadata["content"],
                 score=float(scores[idx]),
+                metadata=evidence_metadata if evidence_metadata else None,
             )
             results.append(chunk)
 

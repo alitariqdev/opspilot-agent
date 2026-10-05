@@ -26,6 +26,9 @@ This process is time-consuming, error-prone, and requires extensive domain knowl
 **1. Log and Runbook Evidence Retrieval**
 - BM25-based local search (no external dependencies)
 - Parses structured log files preserving line numbers
+- **Docker container log support** (JSON format)
+- **Kubernetes pod log support** (timestamped format)
+- Extracts and indexes container/pod metadata
 - Indexes operational runbooks for diagnostic guidance
 - Retrieves top-k most relevant evidence chunks
 
@@ -146,6 +149,7 @@ opspilot-agent/
 │   │   └── live_diagnosis.py # LLM diagnosis (live mode)
 │   ├── tools/               # Utilities
 │   │   ├── log_parser.py    # Structured log parsing
+│   │   ├── container_log_parser.py # Docker/Kubernetes log parsing
 │   │   └── evidence_retriever.py # BM25 evidence search
 │   ├── config.py            # Configuration management
 │   ├── models.py            # Pydantic data models
@@ -156,10 +160,14 @@ opspilot-agent/
 ├── data/
 │   ├── incidents/           # Sample incident data
 │   │   ├── incident_001.json
-│   │   └── incident_001_logs.txt
+│   │   ├── incident_001_logs.txt (plain text)
+│   │   ├── order-service-a3f8d2.docker.log (Docker)
+│   │   ├── api-gateway-7b9c4e.docker.log (Docker)
+│   │   ├── postgres-pod_default_postgres.k8s.log (Kubernetes)
+│   │   └── reporting-worker-pod_jobs_worker.k8s.log (Kubernetes)
 │   └── runbooks/            # Operational runbooks
 │       └── database_connection_pool.md
-├── tests/                   # Test suite (172 tests)
+├── tests/                   # Test suite (205 tests)
 ├── app.py                   # Streamlit application
 ├── requirements.txt         # Python dependencies
 ├── .env.example             # Configuration template
@@ -301,6 +309,118 @@ cp .env.example .env
 
 ---
 
+## Container Log Support
+
+### Docker Container Logs
+
+OpsPilot supports exported Docker container logs in JSON format:
+
+```json
+{"log":"2024-03-15T14:20:16Z ERROR [order-service] Connection timeout\n","stream":"stderr","time":"2024-03-15T14:20:16.123456789Z"}
+```
+
+**Supported Export Methods:**
+```bash
+# Export single container logs
+docker logs <container-id> --timestamps > container.docker.log
+
+# Export with container info in filename
+docker logs order-service > order-service-abc123.docker.log
+```
+
+**Extracted Metadata:**
+- Container ID (from filename or metadata)
+- Container name (from filename or metadata)
+- Stream type (stdout/stderr)
+- Timestamps (Docker timestamp and log message timestamp)
+- Structured log fields (level, service, message)
+
+### Kubernetes Pod Logs
+
+OpsPilot supports exported Kubernetes pod logs in standard format:
+
+```
+2024-03-15T14:20:16.123456789Z stdout F 2024-03-15T14:20:16Z ERROR [service] Message
+```
+
+**Supported Export Methods:**
+```bash
+# Export single container logs
+kubectl logs <pod-name> -c <container-name> --timestamps > pod.k8s.log
+
+# Export with full metadata in filename
+kubectl logs order-pod -c app --timestamps > order-pod_production_app.k8s.log
+
+# Export multiple containers
+kubectl logs postgres-pod -c postgres > postgres-pod_default_postgres.k8s.log
+```
+
+**Extracted Metadata:**
+- Pod name (from filename or kubectl context)
+- Namespace (from filename or kubectl context)
+- Container name (from filename or kubectl context)
+- Stream type (stdout/stderr)
+- Timestamps (Kubernetes timestamp and log message timestamp)
+- Structured log fields (level, service, message)
+
+### File Naming Conventions
+
+**Docker logs:**
+- `<container-name>-<container-id>.docker.log` - Recommended
+- `<container-name>.docker.json` - Alternative
+- Auto-detection for `.log` or `.json` files with JSON content
+
+**Kubernetes logs:**
+- `<pod-name>_<namespace>_<container-name>.k8s.log` - Recommended
+- `<pod-name>_<container-name>.kubernetes.log` - Alternative
+- Auto-detection for logs with Kubernetes format pattern
+
+### Evidence Citations with Container Metadata
+
+Container logs preserve full metadata in evidence citations:
+
+**Docker Evidence:**
+```
+Evidence ev_a3f8d2c1b5e4 (order-service-abc123.docker.log:6)
+Container: order-service (ID: abc123)
+2024-03-15T14:20:16Z ERROR [order-service] Connection pool exhausted
+```
+
+**Kubernetes Evidence:**
+```
+Evidence ev_7b9c4e8d2a1f (postgres-pod_default_postgres.k8s.log:4)
+Pod: postgres-pod, Namespace: default, Container: postgres
+2024-03-15T14:22:01Z DEBUG [postgres] Connection pool: 20/20 active
+```
+
+### Mixed Environment Support
+
+OpsPilot can analyze incidents spanning multiple environments:
+- Plain text application logs
+- Docker container logs from development/staging
+- Kubernetes pod logs from production clusters
+- All logs indexed together for cross-environment correlation
+
+### Limitations
+
+**Processing Only:**
+- OpsPilot processes **exported log files** only
+- Does **not** connect to Docker daemons or Kubernetes clusters
+- Does **not** require credentials or cluster access
+- Does **not** stream logs in real-time
+
+**Multiline Logs:**
+- Kubernetes partial lines (P flag) are currently skipped
+- For stack traces spanning multiple lines, export with full lines (F flag)
+- Consider pre-processing multiline logs before export
+
+**Format Requirements:**
+- Docker logs must be valid JSON with `log`, `stream`, and `time` fields
+- Kubernetes logs must follow standard `kubectl logs --timestamps` format
+- Structured log messages inside container logs are parsed when possible
+
+---
+
 ## Sample Incident
 
 OpsPilot includes a synthetic incident for demonstration:
@@ -318,7 +438,11 @@ OpsPilot includes a synthetic incident for demonstration:
 
 **Included Data:**
 - `incident_001.json` - Incident metadata
-- `incident_001_logs.txt` - 34 timestamped log entries
+- `incident_001_logs.txt` - 34 timestamped plain text log entries
+- `order-service-a3f8d2.docker.log` - Docker container logs (12 entries)
+- `api-gateway-7b9c4e.docker.log` - Docker container logs (8 entries)
+- `postgres-pod_default_postgres.k8s.log` - Kubernetes pod logs (7 entries)
+- `reporting-worker-pod_jobs_worker.k8s.log` - Kubernetes pod logs (3 entries)
 - `database_connection_pool.md` - Operational runbook
 
 **Expected Results:**
@@ -346,8 +470,9 @@ This realistic scenario demonstrates evidence-grounded analysis without using re
 **Scope:**
 - Single incident analysis (no trend detection)
 - Text-based logs only (no metrics or traces)
+- Exported logs only (no live cluster connections)
 - English language only
-- Structured log format required
+- Structured log format preferred (unstructured messages indexed as-is)
 
 **Analysis:**
 - Correlation vs. causation explicitly noted
@@ -398,6 +523,12 @@ This project was developed with assistance from AI coding tools:
 - **ChatGPT/Claude** - Project planning, architecture design, debugging assistance, testing strategy, and documentation guidance
 - **GitHub Copilot Agent** - Code generation, refactoring suggestions, test generation, and implementation assistance
 
+**Feature Development:**
+
+This project demonstrates incremental feature development with AI assistance:
+- **Initial implementation** (Phases 1-5): Core incident investigation workflow with offline demo mode and optional live LLM mode
+- **Container log ingestion** (GitHub Issue #2): Docker and Kubernetes log parsing, metadata extraction, and integration with existing evidence retrieval system
+
 **Development Process:**
 
 1. **AI-Generated Content:** AI tools provided code suggestions, architectural patterns, test cases, and documentation drafts
@@ -418,10 +549,13 @@ This project demonstrates the effective use of AI pair programming tools while m
 
 ## Testing
 
-OpsPilot includes **172 automated tests** covering:
+OpsPilot includes **205 automated tests** covering:
 
 - Configuration management and validation
 - Evidence retrieval and log parsing
+- **Docker container log parsing** (25 tests)
+- **Kubernetes pod log parsing** (integrated in container tests)
+- **Container evidence retrieval** (8 integration tests)
 - Triage assessment logic
 - Hypothesis generation and ranking
 - Independent verification
