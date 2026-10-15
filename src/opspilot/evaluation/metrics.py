@@ -47,7 +47,7 @@ def calculate_service_metrics(
         return ServiceMetrics(precision=0.0, recall=0.0, f1=0.0)
 
     # Calculate true positives (intersection)
-    true_positives = len(actual | expected)
+    true_positives = len(actual & expected)
 
     # Precision: correct predictions / total predictions
     precision = true_positives / len(actual) if actual else 0.0
